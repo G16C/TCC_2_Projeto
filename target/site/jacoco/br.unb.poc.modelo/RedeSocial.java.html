@@ -1,0 +1,215 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="pt"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>RedeSocial.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">PoC - Propagação de Emoções em Redes Sociais</a> &gt; <a href="index.source.html" class="el_package">br.unb.poc.modelo</a> &gt; <span class="el_source">RedeSocial.java</span></div><h1>RedeSocial.java</h1><pre class="source lang-java linenums">package br.unb.poc.modelo;
+
+import br.unb.poc.modelo.topologia.GeradorTopologia;
+import br.unb.poc.modelo.topologia.TopologiaSmallWorld;
+import br.unb.poc.dados.TwitterNetworkData;
+
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
+import java.util.Random;
+import java.util.Set;
+
+/**
+ * Representa a estrutura topológica da rede social simulada.
+ *
+ * &lt;p&gt;A rede é modelada como um grafo não-dirigido ponderado G = (V, E, W).
+ * A construção efetiva do grafo é delegada a um {@link GeradorTopologia},
+ * permitindo alternar entre diferentes modelos de rede (Small-World,
+ * Scale-Free, fonte externa de dados) sem qualquer alteração nesta classe
+ * ou na lógica dos agentes — conforme discutido na seção 5.2.2 da
+ * monografia.
+ *
+ * &lt;p&gt;Por compatibilidade com a Prova de Conceito original (TCC I), o
+ * construtor {@link #RedeSocial(long)} usa a topologia Small-World como
+ * padrão. Para escolher outra topologia, utilize
+ * {@link #RedeSocial(long, GeradorTopologia)}.
+ *
+ * @author Gabriel Campello Marques
+ * @version 1.1.0
+ */
+public class RedeSocial {
+
+    /**
+     * Lista de adjacência ponderada: adjacencia.get(i) contém, para cada
+     * vizinho j do agente i, o peso w_ij da conexão.
+     */
+    private final List&lt;Map&lt;Integer, Double&gt;&gt; adjacencia;
+
+    private final int numAgentes;
+    private final SimulationConfiguration configuracao;
+    private final List&lt;String&gt; idsExternos;
+    private final TwitterNetworkData dadosTwitter;
+
+    /**
+     * Constrói a rede social usando a topologia Small-World (padrão),
+     * conforme os parâmetros definidos em {@link ConfiguracaoPoc}.
+     *
+     * @param semente semente do gerador de números aleatórios (para reprodutibilidade)
+     */
+    public RedeSocial(long semente) {
+<span class="fc" id="L51">        this(semente, new TopologiaSmallWorld(), SimulationConfiguration.padrao());</span>
+<span class="fc" id="L52">    }</span>
+
+    /**
+     * Constrói a rede social usando o gerador de topologia informado.
+     *
+     * @param semente  semente do gerador de números aleatórios (para reprodutibilidade)
+     * @param gerador  estratégia de geração da topologia (Small-World, Scale-Free,
+     *                 fonte externa, etc.)
+     */
+    public RedeSocial(long semente, GeradorTopologia gerador) {
+<span class="nc" id="L62">        this(semente, gerador, SimulationConfiguration.padrao());</span>
+<span class="nc" id="L63">    }</span>
+
+    /** Constrói a rede usando explicitamente a configuração do cenário. */
+<span class="fc" id="L66">    public RedeSocial(long semente, GeradorTopologia gerador, SimulationConfiguration configuracao) {</span>
+<span class="fc" id="L67">        this.configuracao = configuracao;</span>
+<span class="fc" id="L68">        Random random = new Random(semente);</span>
+<span class="fc" id="L69">        List&lt;Map&lt;Integer, Double&gt;&gt; gerada = gerador.gerar(configuracao.getNumAgentes(), random, configuracao);</span>
+<span class="fc" id="L70">        this.adjacencia = gerada;</span>
+
+<span class="pc bpc" id="L72" title="1 of 2 branches missed.">        if (gerador instanceof br.unb.poc.modelo.topologia.TopologiaFonteExterna fonte</span>
+<span class="nc bnc" id="L73" title="All 2 branches missed.">                &amp;&amp; fonte.getDadosTwitter() != null) {</span>
+<span class="nc" id="L74">            this.dadosTwitter = fonte.getDadosTwitter();</span>
+<span class="nc" id="L75">            this.numAgentes = dadosTwitter.getNumAgentes();</span>
+<span class="nc" id="L76">            this.idsExternos = dadosTwitter.getIdsExternos();</span>
+        } else {
+<span class="fc" id="L78">            this.dadosTwitter = null;</span>
+<span class="fc" id="L79">            this.numAgentes = gerada.size();</span>
+<span class="fc" id="L80">            this.idsExternos = criarIdsLocais(this.numAgentes);</span>
+        }
+<span class="fc" id="L82">    }</span>
+
+    /** Constrói a rede a partir da configuração, escolhendo a topologia via fábrica. */
+    public RedeSocial(SimulationConfiguration configuracao) {
+<span class="fc" id="L86">        this(configuracao.getSemente(),</span>
+<span class="fc" id="L87">                br.unb.poc.modelo.topologia.GeradorTopologiaFactory.criar(configuracao.getTipoTopologia()),</span>
+                configuracao);
+<span class="fc" id="L89">    }</span>
+
+    /** Constrói a rede diretamente a partir de uma rede real do Twitter. */
+<span class="fc" id="L92">    public RedeSocial(SimulationConfiguration configuracao, TwitterNetworkData dadosTwitter) {</span>
+<span class="pc bpc" id="L93" title="1 of 2 branches missed.">        if (dadosTwitter == null) throw new IllegalArgumentException(&quot;dadosTwitter não pode ser nulo&quot;);</span>
+<span class="fc" id="L94">        this.configuracao = configuracao;</span>
+<span class="fc" id="L95">        this.numAgentes = dadosTwitter.getNumAgentes();</span>
+<span class="fc" id="L96">        this.adjacencia = dadosTwitter.getAdjacencia();</span>
+<span class="fc" id="L97">        this.idsExternos = dadosTwitter.getIdsExternos();</span>
+<span class="fc" id="L98">        this.dadosTwitter = dadosTwitter;</span>
+<span class="fc" id="L99">    }</span>
+
+    private List&lt;String&gt; criarIdsLocais(int quantidade) {
+<span class="fc" id="L102">        List&lt;String&gt; ids = new java.util.ArrayList&lt;&gt;();</span>
+<span class="fc bfc" id="L103" title="All 2 branches covered.">        for (int i = 0; i &lt; quantidade; i++) ids.add(String.valueOf(i));</span>
+<span class="fc" id="L104">        return Collections.unmodifiableList(ids);</span>
+    }
+
+    public SimulationConfiguration getConfiguracao() {
+<span class="nc" id="L108">        return configuracao;</span>
+    }
+
+    /** Retorna o identificador original do nó na fonte externa, quando disponível. */
+    public String getIdExterno(int idAgente) {
+<span class="fc" id="L113">        return idsExternos.get(idAgente);</span>
+    }
+
+    public boolean usaDadosTwitter() {
+<span class="fc bfc" id="L117" title="All 2 branches covered.">        return dadosTwitter != null;</span>
+    }
+
+    public TwitterNetworkData getDadosTwitter() {
+<span class="fc" id="L121">        return dadosTwitter;</span>
+    }
+
+    /** Localiza um agente a partir do identificador original da fonte externa. */
+    public int getIdLocal(String idExterno) {
+<span class="nc" id="L126">        return idsExternos.indexOf(idExterno);</span>
+    }
+
+    /** Retorna o vetor de atributos do nó Twitter, quando disponível. */
+    public int[] getFeaturesTwitter(int idAgente) {
+<span class="nc bnc" id="L131" title="All 2 branches missed.">        if (dadosTwitter == null) return new int[0];</span>
+<span class="nc" id="L132">        int[] vetor = dadosTwitter.getFeatures().get(getIdExterno(idAgente));</span>
+<span class="nc bnc" id="L133" title="All 2 branches missed.">        return vetor == null ? new int[0] : java.util.Arrays.copyOf(vetor, vetor.length);</span>
+    }
+
+    /**
+     * Retorna as features ativas de um usuário Twitter em formato legível,
+     * associando o nome da feature ao valor binário observado.
+     */
+    public Map&lt;String, Integer&gt; getFeaturesAtivasTwitter(int idAgente) {
+<span class="nc bnc" id="L141" title="All 2 branches missed.">        if (dadosTwitter == null) return Map.of();</span>
+<span class="nc" id="L142">        int[] vetor = getFeaturesTwitter(idAgente);</span>
+<span class="nc" id="L143">        List&lt;String&gt; nomes = getNomesFeaturesTwitter();</span>
+<span class="nc" id="L144">        Map&lt;String, Integer&gt; resultado = new java.util.LinkedHashMap&lt;&gt;();</span>
+<span class="nc" id="L145">        int limite = Math.min(vetor.length, nomes.size());</span>
+<span class="nc bnc" id="L146" title="All 2 branches missed.">        for (int i = 0; i &lt; limite; i++) {</span>
+<span class="nc bnc" id="L147" title="All 2 branches missed.">            if (vetor[i] &gt; 0) resultado.put(nomes.get(i), vetor[i]);</span>
+        }
+<span class="nc" id="L149">        return Collections.unmodifiableMap(resultado);</span>
+    }
+
+    /** Retorna os nomes das features do dataset Twitter. */
+    public List&lt;String&gt; getNomesFeaturesTwitter() {
+<span class="nc bnc" id="L154" title="All 2 branches missed.">        return dadosTwitter == null ? List.of() : dadosTwitter.getNomesFeatures();</span>
+    }
+
+    /**
+     * Retorna o conjunto de vizinhos do agente com índice {@code idAgente}.
+     *
+     * @param idAgente índice do agente (0 a numAgentes-1)
+     * @return conjunto imutável de índices dos vizinhos
+     */
+    public Set&lt;Integer&gt; getVizinhos(int idAgente) {
+<span class="fc" id="L164">        return Collections.unmodifiableSet(adjacencia.get(idAgente).keySet());</span>
+    }
+
+    /**
+     * Retorna os vizinhos do agente com índice {@code idAgente} junto com
+     * os pesos {@code w_ij} de cada conexão, conforme a Equação 5.2 da
+     * monografia (influência emocional agregada ponderada).
+     *
+     * @param idAgente índice do agente (0 a numAgentes-1)
+     * @return mapa imutável {@code idVizinho -&gt; peso}
+     */
+    public Map&lt;Integer, Double&gt; getVizinhosComPesos(int idAgente) {
+<span class="fc" id="L176">        return Collections.unmodifiableMap(adjacencia.get(idAgente));</span>
+    }
+
+    /**
+     * Retorna o peso da conexão entre dois agentes, ou {@code 0.0} caso
+     * não exista conexão entre eles.
+     *
+     * @param idAgente  índice do agente de origem
+     * @param idVizinho índice do agente vizinho
+     * @return peso w_ij da conexão
+     */
+    public double getPeso(int idAgente, int idVizinho) {
+<span class="nc" id="L188">        return adjacencia.get(idAgente).getOrDefault(idVizinho, 0.0);</span>
+    }
+
+    /**
+     * Retorna o número total de agentes na rede.
+     *
+     * @return número de nós
+     */
+    public int getNumAgentes() {
+<span class="fc" id="L197">        return numAgentes;</span>
+    }
+
+    /**
+     * Retorna uma representação textual da lista de adjacência,
+     * útil para depuração e geração de logs.
+     *
+     * @return string com a estrutura da rede
+     */
+    @Override
+    public String toString() {
+<span class="nc" id="L208">        StringBuilder sb = new StringBuilder(&quot;Rede Social:\n&quot;);</span>
+<span class="nc bnc" id="L209" title="All 2 branches missed.">        for (int i = 0; i &lt; numAgentes; i++) {</span>
+<span class="nc" id="L210">            sb.append(String.format(&quot;  Agente %2d -&gt; %s%n&quot;, i, adjacencia.get(i).keySet()));</span>
+        }
+<span class="nc" id="L212">        return sb.toString();</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.11.202310140853</span></div></body></html>

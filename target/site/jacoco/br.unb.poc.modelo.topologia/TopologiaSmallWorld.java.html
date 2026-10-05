@@ -1,0 +1,110 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="pt"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>TopologiaSmallWorld.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">PoC - Propagação de Emoções em Redes Sociais</a> &gt; <a href="index.source.html" class="el_package">br.unb.poc.modelo.topologia</a> &gt; <span class="el_source">TopologiaSmallWorld.java</span></div><h1>TopologiaSmallWorld.java</h1><pre class="source lang-java linenums">package br.unb.poc.modelo.topologia;
+
+import br.unb.poc.modelo.ConfiguracaoPoc;
+import br.unb.poc.modelo.SimulationConfiguration;
+
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Random;
+
+/**
+ * Gera uma topologia &lt;i&gt;Small-World&lt;/i&gt; segundo o modelo de Watts e
+ * Strogatz (1998): parte-se de um anel onde cada nó se conecta aos
+ * {@code k} vizinhos imediatos de cada lado e, em seguida, cada aresta
+ * é reconectada aleatoriamente com probabilidade {@code p}, criando os
+ * atalhos característicos do modelo.
+ *
+ * &lt;p&gt;Os pesos de todas as conexões são uniformes ({@code w_ij = PESO_CONEXAO}),
+ * conforme os parâmetros definidos em {@link ConfiguracaoPoc}.
+ *
+ * &lt;p&gt;A reconexão garante que nenhum agente fique isolado (grau zero):
+ * uma aresta só é removida se o agente do outro lado ainda possuir ao
+ * menos um vizinho após a remoção.
+ *
+ * &lt;p&gt;Esta classe preserva exatamente o comportamento da implementação
+ * original de {@code RedeSocial} (Prova de Conceito, TCC I), apenas
+ * reorganizada para atender ao contrato {@link GeradorTopologia}.
+ *
+ * @author Gabriel Campello Marques
+ * @version 1.1.0
+ */
+<span class="fc" id="L33">public class TopologiaSmallWorld implements GeradorTopologia {</span>
+
+    @Override
+    public List&lt;Map&lt;Integer, Double&gt;&gt; gerar(int numAgentes, Random random, SimulationConfiguration configuracao) {
+<span class="fc" id="L37">        List&lt;Map&lt;Integer, Double&gt;&gt; vizinhos = new ArrayList&lt;&gt;();</span>
+<span class="fc bfc" id="L38" title="All 2 branches covered.">        for (int i = 0; i &lt; numAgentes; i++) {</span>
+<span class="fc" id="L39">            vizinhos.add(new HashMap&lt;&gt;());</span>
+        }
+
+<span class="fc" id="L42">        construirAnel(vizinhos, numAgentes, configuracao);</span>
+<span class="fc" id="L43">        aplicarReconexoes(vizinhos, numAgentes, random, configuracao);</span>
+
+<span class="fc" id="L45">        return vizinhos;</span>
+    }
+
+    /**
+     * Constrói a estrutura base em anel: cada nó i se conecta aos
+     * {@code VIZINHOS_ANEL} nós imediatamente à sua esquerda e direita.
+     */
+    private void construirAnel(List&lt;Map&lt;Integer, Double&gt;&gt; vizinhos, int numAgentes, SimulationConfiguration configuracao) {
+<span class="fc" id="L53">        int k = configuracao.getVizinhosAnel();</span>
+<span class="fc" id="L54">        double peso = configuracao.getPesoConexao();</span>
+<span class="fc bfc" id="L55" title="All 2 branches covered.">        for (int i = 0; i &lt; numAgentes; i++) {</span>
+<span class="fc bfc" id="L56" title="All 2 branches covered.">            for (int delta = 1; delta &lt;= k; delta++) {</span>
+<span class="fc" id="L57">                int j = (i + delta) % numAgentes;</span>
+<span class="fc" id="L58">                vizinhos.get(i).put(j, peso);</span>
+<span class="fc" id="L59">                vizinhos.get(j).put(i, peso);</span>
+            }
+        }
+<span class="fc" id="L62">    }</span>
+
+    /**
+     * Aplica reconexões aleatórias com probabilidade {@code PROB_RECONEXAO},
+     * introduzindo as ligações de &quot;atalho&quot; características do modelo Small-World.
+     *
+     * &lt;p&gt;Uma reconexão é descartada (a aresta original é preservada) quando
+     * removê-la deixaria o agente do outro lado da aresta ({@code j}) sem
+     * nenhum vizinho. Sem essa salvaguarda, um agente pode perder sua única
+     * conexão quando é o alvo passivo de reconexões de outros agentes,
+     * resultando em um nó isolado (grau zero) — o que não é permitido pelo
+     * modelo de Watts e Strogatz, cuja premissa é preservar a conectividade
+     * do grafo durante a reconexão.
+     */
+    private void aplicarReconexoes(List&lt;Map&lt;Integer, Double&gt;&gt; vizinhos, int numAgentes, Random random, SimulationConfiguration configuracao) {
+<span class="fc" id="L77">        double p = configuracao.getProbReconexao();</span>
+<span class="fc" id="L78">        double peso = configuracao.getPesoConexao();</span>
+
+<span class="fc bfc" id="L80" title="All 2 branches covered.">        for (int i = 0; i &lt; numAgentes; i++) {</span>
+            // Copia para evitar ConcurrentModificationException
+<span class="fc" id="L82">            List&lt;Integer&gt; atualVizinhos = new ArrayList&lt;&gt;(vizinhos.get(i).keySet());</span>
+<span class="fc bfc" id="L83" title="All 2 branches covered.">            for (int j : atualVizinhos) {</span>
+<span class="fc bfc" id="L84" title="All 4 branches covered.">                if (j &gt; i &amp;&amp; random.nextDouble() &lt; p) {</span>
+                    // Não reconecta se isso deixaria o agente j sem nenhum vizinho
+<span class="fc bfc" id="L86" title="All 2 branches covered.">                    if (vizinhos.get(j).size() &lt;= 1) {</span>
+<span class="fc" id="L87">                        continue;</span>
+                    }
+
+                    // Encontra um destino aleatório diferente de i e não já conectado
+<span class="fc" id="L91">                    int novoVizinho = random.nextInt(numAgentes);</span>
+<span class="fc" id="L92">                    int tentativas = 0;</span>
+<span class="pc bpc" id="L93" title="1 of 6 branches missed.">                    while ((novoVizinho == i || vizinhos.get(i).containsKey(novoVizinho))</span>
+                            &amp;&amp; tentativas &lt; numAgentes) {
+<span class="fc" id="L95">                        novoVizinho = random.nextInt(numAgentes);</span>
+<span class="fc" id="L96">                        tentativas++;</span>
+                    }
+<span class="pc bpc" id="L98" title="1 of 2 branches missed.">                    if (tentativas &lt; numAgentes) {</span>
+                        // Remove a aresta antiga e adiciona a nova
+<span class="fc" id="L100">                        vizinhos.get(i).remove(j);</span>
+<span class="fc" id="L101">                        vizinhos.get(j).remove(i);</span>
+<span class="fc" id="L102">                        vizinhos.get(i).put(novoVizinho, peso);</span>
+<span class="fc" id="L103">                        vizinhos.get(novoVizinho).put(i, peso);</span>
+                    }
+                }
+<span class="fc" id="L106">            }</span>
+        }
+<span class="fc" id="L108">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.11.202310140853</span></div></body></html>

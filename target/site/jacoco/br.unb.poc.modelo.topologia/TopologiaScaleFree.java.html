@@ -1,0 +1,94 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="pt"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>TopologiaScaleFree.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">PoC - Propagação de Emoções em Redes Sociais</a> &gt; <a href="index.source.html" class="el_package">br.unb.poc.modelo.topologia</a> &gt; <span class="el_source">TopologiaScaleFree.java</span></div><h1>TopologiaScaleFree.java</h1><pre class="source lang-java linenums">package br.unb.poc.modelo.topologia;
+
+import br.unb.poc.modelo.ConfiguracaoPoc;
+import br.unb.poc.modelo.SimulationConfiguration;
+
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Random;
+import java.util.Set;
+
+/**
+ * Gera uma topologia &lt;i&gt;Scale-Free&lt;/i&gt; (livre de escala) segundo o modelo
+ * de fixação preferencial de Barabási e Albert (1999): a rede evolui por
+ * crescimento incremental, em que cada novo nó se conecta a {@code m} nós
+ * já existentes, escolhidos com probabilidade proporcional ao grau atual
+ * de cada nó (fenômeno de &quot;os ricos ficam mais ricos&quot;).
+ *
+ * &lt;p&gt;Esse mecanismo produz uma distribuição de grau em lei de potência,
+ * com poucos nós concentrando um número muito elevado de conexões (hubs)
+ * — característica descrita na seção 5.2.2 da monografia como aproximação
+ * da estrutura observada em plataformas digitais como Twitter e Instagram.
+ *
+ * &lt;p&gt;Assim como na topologia Small-World, os pesos das conexões são
+ * uniformes ({@code w_ij = PESO_CONEXAO}), definidos em {@link ConfiguracaoPoc}.
+ *
+ * @author Gabriel Campello Marques
+ * @version 1.1.0
+ */
+<span class="nc" id="L32">public class TopologiaScaleFree implements GeradorTopologia {</span>
+
+    @Override
+    public List&lt;Map&lt;Integer, Double&gt;&gt; gerar(int numAgentes, Random random, SimulationConfiguration configuracao) {
+<span class="nc" id="L36">        List&lt;Map&lt;Integer, Double&gt;&gt; vizinhos = new ArrayList&lt;&gt;();</span>
+<span class="nc bnc" id="L37" title="All 2 branches missed.">        for (int i = 0; i &lt; numAgentes; i++) {</span>
+<span class="nc" id="L38">            vizinhos.add(new HashMap&lt;&gt;());</span>
+        }
+
+<span class="nc" id="L41">        double peso = configuracao.getPesoConexao();</span>
+<span class="nc" id="L42">        int m = configuracao.getScaleFreeConexoesIniciais();</span>
+
+        // Núcleo inicial: grafo completo entre os primeiros nós, garantindo
+        // grau inicial suficiente para o processo de fixação preferencial.
+<span class="nc" id="L46">        int nucleoInicial = Math.min(numAgentes, Math.max(m + 1, 2));</span>
+<span class="nc bnc" id="L47" title="All 2 branches missed.">        for (int i = 0; i &lt; nucleoInicial; i++) {</span>
+<span class="nc bnc" id="L48" title="All 2 branches missed.">            for (int j = i + 1; j &lt; nucleoInicial; j++) {</span>
+<span class="nc" id="L49">                conectar(vizinhos, i, j, peso);</span>
+            }
+        }
+
+        // Lista de &quot;bolas na urna&quot;: cada nó aparece uma vez por conexão que
+        // possui, de forma que sortear um índice aleatório da lista equivale
+        // a escolher um nó com probabilidade proporcional ao seu grau atual.
+<span class="nc" id="L56">        List&lt;Integer&gt; urnaPorGrau = new ArrayList&lt;&gt;();</span>
+<span class="nc bnc" id="L57" title="All 2 branches missed.">        for (int i = 0; i &lt; nucleoInicial; i++) {</span>
+<span class="nc bnc" id="L58" title="All 2 branches missed.">            for (int k = 0; k &lt; vizinhos.get(i).size(); k++) {</span>
+<span class="nc" id="L59">                urnaPorGrau.add(i);</span>
+            }
+        }
+
+        // Crescimento incremental: cada novo nó se conecta a m nós existentes,
+        // escolhidos por fixação preferencial (proporcional ao grau).
+<span class="nc bnc" id="L65" title="All 2 branches missed.">        for (int novoNo = nucleoInicial; novoNo &lt; numAgentes; novoNo++) {</span>
+<span class="nc" id="L66">            int conexoesDesejadas = Math.min(m, novoNo);</span>
+<span class="nc" id="L67">            Set&lt;Integer&gt; escolhidos = new HashSet&lt;&gt;();</span>
+<span class="nc" id="L68">            int tentativas = 0;</span>
+<span class="nc" id="L69">            int limiteTentativas = numAgentes * 10;</span>
+
+<span class="nc bnc" id="L71" title="All 4 branches missed.">            while (escolhidos.size() &lt; conexoesDesejadas &amp;&amp; tentativas &lt; limiteTentativas) {</span>
+<span class="nc bnc" id="L72" title="All 2 branches missed.">                int candidato = urnaPorGrau.isEmpty()</span>
+<span class="nc" id="L73">                        ? random.nextInt(novoNo)</span>
+<span class="nc" id="L74">                        : urnaPorGrau.get(random.nextInt(urnaPorGrau.size()));</span>
+<span class="nc" id="L75">                escolhidos.add(candidato);</span>
+<span class="nc" id="L76">                tentativas++;</span>
+<span class="nc" id="L77">            }</span>
+
+<span class="nc bnc" id="L79" title="All 2 branches missed.">            for (int destino : escolhidos) {</span>
+<span class="nc" id="L80">                conectar(vizinhos, novoNo, destino, peso);</span>
+<span class="nc" id="L81">                urnaPorGrau.add(destino);</span>
+<span class="nc" id="L82">                urnaPorGrau.add(novoNo);</span>
+<span class="nc" id="L83">            }</span>
+        }
+
+<span class="nc" id="L86">        return vizinhos;</span>
+    }
+
+    private void conectar(List&lt;Map&lt;Integer, Double&gt;&gt; vizinhos, int i, int j, double peso) {
+<span class="nc" id="L90">        vizinhos.get(i).put(j, peso);</span>
+<span class="nc" id="L91">        vizinhos.get(j).put(i, peso);</span>
+<span class="nc" id="L92">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.11.202310140853</span></div></body></html>

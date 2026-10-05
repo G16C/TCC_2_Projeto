@@ -1,0 +1,256 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="pt"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>DatabaseUtil.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">PoC - Propagação de Emoções em Redes Sociais</a> &gt; <a href="index.source.html" class="el_package">br.unb.poc.util</a> &gt; <span class="el_source">DatabaseUtil.java</span></div><h1>DatabaseUtil.java</h1><pre class="source lang-java linenums">package br.unb.poc.util;
+
+import br.unb.poc.modelo.ConfiguracaoPoc;
+import br.unb.poc.modelo.SimulationConfiguration;
+import br.unb.poc.modelo.EstadoEmocional;
+import br.unb.poc.modelo.emocao.Emotion;
+import br.unb.poc.modelo.emocao.EmotionState;
+
+import java.sql.*;
+
+/**
+ * Utilitário responsável pela conexão com o banco de dados PostgreSQL
+ * e pelas operações de persistência dos resultados da simulação.
+ *
+ * &lt;p&gt;O esquema do banco utilizado pela PoC é composto por duas tabelas:
+ * &lt;ul&gt;
+ *   &lt;li&gt;{@code simulacao}: registra os metadados de cada execução;&lt;/li&gt;
+ *   &lt;li&gt;{@code estado_emocional}: armazena o estado emocional de cada
+ *       agente ao final de cada ciclo.&lt;/li&gt;
+ * &lt;/ul&gt;
+ *
+ * &lt;p&gt;O DDL de criação das tabelas pode ser executado pelo método
+ * {@link #inicializarEsquema()}, chamado automaticamente no início
+ * de cada execução.
+ *
+ * &lt;p&gt;&lt;b&gt;Concorrência:&lt;/b&gt; a PoC usa uma única {@link Connection} JDBC
+ * compartilhada por todos os agentes ({@code UsuarioAgent} roda como
+ * threads dentro da mesma JVM). Como uma {@code Connection} não é
+ * thread-safe, todos os métodos que a utilizam são {@code synchronized}
+ * na classe — isso serializa as escritas no banco (aceitável para o
+ * volume desta PoC) e evita erros de &quot;connection has been closed&quot; sob
+ * simulações com muitos agentes gravando estado ao mesmo tempo.
+ *
+ * @author Gabriel Campello Marques
+ * @version 1.0.0
+ */
+public class DatabaseUtil {
+
+    private static Connection conexao;
+
+    /** Construtor privado: classe utilitária. */
+    private DatabaseUtil() {}
+
+    /**
+     * Obtém (ou cria) a conexão singleton com o PostgreSQL.
+     *
+     * @return {@link Connection} ativa
+     * @throws SQLException em caso de falha na conexão
+     */
+    public static Connection getConexao() throws SQLException {
+<span class="nc" id="L51">        return getConexao(SimulationConfiguration.padrao());</span>
+    }
+
+    public static synchronized Connection getConexao(SimulationConfiguration configuracao) throws SQLException {
+<span class="nc bnc" id="L55" title="All 4 branches missed.">        if (conexao == null || conexao.isClosed()) {</span>
+<span class="nc" id="L56">            conexao = DriverManager.getConnection(</span>
+<span class="nc" id="L57">                    configuracao.getDbUrl(),</span>
+<span class="nc" id="L58">                    configuracao.getDbUser(),</span>
+<span class="nc" id="L59">                    configuracao.getDbPassword()</span>
+            );
+        }
+<span class="nc" id="L62">        return conexao;</span>
+    }
+
+    /**
+     * Cria as tabelas do esquema da PoC caso ainda não existam.
+     *
+     * &lt;p&gt;DDL executado:
+     * &lt;pre&gt;
+     * CREATE TABLE IF NOT EXISTS simulacao (
+     *     id          SERIAL PRIMARY KEY,
+     *     iniciada_em TIMESTAMP DEFAULT NOW(),
+     *     num_agentes INTEGER,
+     *     num_ciclos  INTEGER,
+     *     alpha       DOUBLE PRECISION,
+     *     delta       DOUBLE PRECISION
+     * );
+     *
+     * CREATE TABLE IF NOT EXISTS estado_emocional (
+     *     id             SERIAL PRIMARY KEY,
+     *     simulacao_id   INTEGER REFERENCES simulacao(id),
+     *     ciclo          INTEGER,
+     *     id_agente      INTEGER,
+     *     valor          DOUBLE PRECISION,
+     *     categoria      VARCHAR(10)
+     * );
+     * &lt;/pre&gt;
+     *
+     * @throws SQLException em caso de erro na execução do DDL
+     */
+    public static synchronized void inicializarEsquema() throws SQLException {
+<span class="nc" id="L92">        String ddlSimulacao = &quot;&quot;&quot;</span>
+                CREATE TABLE IF NOT EXISTS simulacao (
+                    id          SERIAL PRIMARY KEY,
+                    iniciada_em TIMESTAMP DEFAULT NOW(),
+                    num_agentes INTEGER,
+                    num_ciclos  INTEGER,
+                    alpha       DOUBLE PRECISION,
+                    delta       DOUBLE PRECISION,
+                    fonte_dados VARCHAR(50),
+                    twitter_ego_id VARCHAR(64)
+                );
+                &quot;&quot;&quot;;
+
+<span class="nc" id="L105">        String ddlEstado = &quot;&quot;&quot;</span>
+                CREATE TABLE IF NOT EXISTS estado_emocional (
+                    id           SERIAL PRIMARY KEY,
+                    simulacao_id INTEGER REFERENCES simulacao(id),
+                    ciclo        INTEGER,
+                    id_agente    INTEGER,
+                    id_externo   VARCHAR(128),
+                    valor        DOUBLE PRECISION,
+                    categoria    VARCHAR(10)
+                );
+                &quot;&quot;&quot;;
+
+<span class="nc" id="L117">        try (Statement stmt = getConexao().createStatement()) {</span>
+<span class="nc" id="L118">            stmt.execute(ddlSimulacao);</span>
+<span class="nc" id="L119">            stmt.execute(ddlEstado);</span>
+<span class="nc" id="L120">            stmt.execute(&quot;ALTER TABLE simulacao ADD COLUMN IF NOT EXISTS fonte_dados VARCHAR(50)&quot;);</span>
+<span class="nc" id="L121">            stmt.execute(&quot;ALTER TABLE simulacao ADD COLUMN IF NOT EXISTS twitter_ego_id VARCHAR(64)&quot;);</span>
+<span class="nc" id="L122">            stmt.execute(&quot;ALTER TABLE estado_emocional ADD COLUMN IF NOT EXISTS id_externo VARCHAR(128)&quot;);</span>
+<span class="nc" id="L123">            stmt.execute(&quot;ALTER TABLE estado_emocional ADD COLUMN IF NOT EXISTS anger DOUBLE PRECISION DEFAULT 0&quot;);</span>
+<span class="nc" id="L124">            stmt.execute(&quot;ALTER TABLE estado_emocional ADD COLUMN IF NOT EXISTS disgust DOUBLE PRECISION DEFAULT 0&quot;);</span>
+<span class="nc" id="L125">            stmt.execute(&quot;ALTER TABLE estado_emocional ADD COLUMN IF NOT EXISTS joy DOUBLE PRECISION DEFAULT 0&quot;);</span>
+<span class="nc" id="L126">            stmt.execute(&quot;ALTER TABLE estado_emocional ADD COLUMN IF NOT EXISTS sadness DOUBLE PRECISION DEFAULT 0&quot;);</span>
+<span class="nc" id="L127">            stmt.execute(&quot;ALTER TABLE estado_emocional ALTER COLUMN categoria TYPE VARCHAR(20)&quot;);</span>
+        }
+<span class="nc" id="L129">    }</span>
+
+    /**
+     * Registra uma nova execução de simulação e retorna o ID gerado.
+     *
+     * @return ID da simulação recém-inserida
+     * @throws SQLException em caso de erro na inserção
+     */
+    public static int registrarSimulacao() throws SQLException {
+<span class="nc" id="L138">        return registrarSimulacao(SimulationConfiguration.padrao());</span>
+    }
+
+    public static int registrarSimulacao(SimulationConfiguration configuracao) throws SQLException {
+<span class="nc" id="L142">        return registrarSimulacao(configuracao, configuracao.getNumAgentes());</span>
+    }
+
+    /**
+     * Registra uma execução usando a quantidade efetivamente carregada.
+     * Isso é necessário para fontes externas, nas quais o número de nós
+     * é definido pelo dataset e não por uma constante da configuração.
+     */
+    public static synchronized int registrarSimulacao(
+            SimulationConfiguration configuracao,
+            int numAgentesReal) throws SQLException {
+
+<span class="nc" id="L154">        String sql = &quot;&quot;&quot;</span>
+                INSERT INTO simulacao
+                    (num_agentes, num_ciclos, alpha, delta, fonte_dados, twitter_ego_id)
+                VALUES (?, ?, ?, ?, ?, ?)
+                RETURNING id;
+                &quot;&quot;&quot;;
+
+<span class="nc" id="L161">        try (PreparedStatement ps = getConexao(configuracao).prepareStatement(sql)) {</span>
+<span class="nc" id="L162">            ps.setInt(1, numAgentesReal);</span>
+<span class="nc" id="L163">            ps.setInt(2, configuracao.getNumCiclos());</span>
+<span class="nc" id="L164">            ps.setDouble(3, configuracao.getAlpha());</span>
+<span class="nc" id="L165">            ps.setDouble(4, configuracao.getDelta());</span>
+<span class="nc" id="L166">            ps.setString(5, configuracao.getFonteDados().name());</span>
+<span class="nc" id="L167">            ps.setString(6, configuracao.getTwitterEgoId());</span>
+
+<span class="nc" id="L169">            try (ResultSet rs = ps.executeQuery()) {</span>
+<span class="nc" id="L170">                rs.next();</span>
+<span class="nc" id="L171">                return rs.getInt(&quot;id&quot;);</span>
+            }
+        }
+    }
+
+    /**
+     * Persiste o estado emocional de um agente em um determinado ciclo.
+     *
+     * @param simulacaoId ID da simulação corrente
+     * @param ciclo       número do ciclo (1 a NUM_CICLOS)
+     * @param idAgente    índice do agente (0 a NUM_AGENTES - 1)
+     * @param estado      estado emocional a ser registrado
+     * @throws SQLException em caso de erro na inserção
+     */
+    public static synchronized void salvarEstado(int simulacaoId,
+                                    int ciclo,
+                                    int idAgente,
+                                    EstadoEmocional estado) throws SQLException {
+<span class="nc" id="L189">        String sql = &quot;&quot;&quot;</span>
+                INSERT INTO estado_emocional (simulacao_id, ciclo, id_agente, valor, categoria)
+                VALUES (?, ?, ?, ?, ?);
+                &quot;&quot;&quot;;
+
+<span class="nc" id="L194">        try (PreparedStatement ps = getConexao().prepareStatement(sql)) {</span>
+<span class="nc" id="L195">            ps.setInt(1, simulacaoId);</span>
+<span class="nc" id="L196">            ps.setInt(2, ciclo);</span>
+<span class="nc" id="L197">            ps.setInt(3, idAgente);</span>
+<span class="nc" id="L198">            ps.setDouble(4, estado.getValor());</span>
+<span class="nc" id="L199">            ps.setString(5, estado.getCategoria().name());</span>
+<span class="nc" id="L200">            ps.executeUpdate();</span>
+        }
+<span class="nc" id="L202">    }</span>
+
+    /**
+     * Persiste o estado emocional multidimensional da etapa 2.
+     *
+     * &lt;p&gt;Os campos valor e categoria são mantidos para compatibilidade
+     * com consultas da PoC: valor representa a maior intensidade e
+     * categoria representa a emoção dominante.&lt;/p&gt;
+     */
+    public static void salvarEstado(int simulacaoId,
+                                    int ciclo,
+                                    int idAgente,
+                                    EmotionState estado) throws SQLException {
+<span class="nc" id="L215">        salvarEstado(simulacaoId, ciclo, idAgente, null, estado);</span>
+<span class="nc" id="L216">    }</span>
+
+    /** Persiste o estado e, quando aplicável, o identificador original do dataset. */
+    public static synchronized void salvarEstado(int simulacaoId,
+                                    int ciclo,
+                                    int idAgente,
+                                    String idExterno,
+                                    EmotionState estado) throws SQLException {
+<span class="nc" id="L224">        String sql = &quot;INSERT INTO estado_emocional &quot;</span>
+                + &quot;(simulacao_id, ciclo, id_agente, id_externo, valor, categoria, anger, disgust, joy, sadness) &quot;
+                + &quot;VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)&quot;;
+
+<span class="nc" id="L228">        try (PreparedStatement ps = getConexao(SimulationConfiguration.padrao()).prepareStatement(sql)) {</span>
+<span class="nc" id="L229">            ps.setInt(1, simulacaoId);</span>
+<span class="nc" id="L230">            ps.setInt(2, ciclo);</span>
+<span class="nc" id="L231">            ps.setInt(3, idAgente);</span>
+<span class="nc" id="L232">            ps.setString(4, idExterno);</span>
+<span class="nc" id="L233">            ps.setDouble(5, estado.getValor());</span>
+<span class="nc" id="L234">            ps.setString(6, estado.getRotuloDominante());</span>
+<span class="nc" id="L235">            ps.setDouble(7, estado.getIntensity(Emotion.ANGER));</span>
+<span class="nc" id="L236">            ps.setDouble(8, estado.getIntensity(Emotion.DISGUST));</span>
+<span class="nc" id="L237">            ps.setDouble(9, estado.getIntensity(Emotion.JOY));</span>
+<span class="nc" id="L238">            ps.setDouble(10, estado.getIntensity(Emotion.SADNESS));</span>
+<span class="nc" id="L239">            ps.executeUpdate();</span>
+        }
+<span class="nc" id="L241">    }</span>
+
+    /**
+     * Encerra a conexão com o banco de dados.
+     */
+    public static synchronized void fecharConexao() {
+<span class="nc bnc" id="L247" title="All 2 branches missed.">        if (conexao != null) {</span>
+            try {
+<span class="nc" id="L249">                conexao.close();</span>
+<span class="nc" id="L250">            } catch (SQLException e) {</span>
+<span class="nc" id="L251">                System.err.println(&quot;[DB] Erro ao fechar conexão: &quot; + e.getMessage());</span>
+<span class="nc" id="L252">            }</span>
+        }
+<span class="nc" id="L254">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.11.202310140853</span></div></body></html>

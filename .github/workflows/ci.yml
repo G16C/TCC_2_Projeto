@@ -1,0 +1,47 @@
+name: CI
+
+# Observabilidade de testes: roda a suíte JUnit automaticamente a cada push
+# e pull request, e publica o relatório de cobertura (JaCoCo) e o relatório
+# de testes (Surefire) como artefatos do workflow, para inspeção sem
+# precisar rodar nada localmente.
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+  workflow_dispatch: {}
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout do código
+        uses: actions/checkout@v4
+
+      - name: Configurar JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: maven
+
+      - name: Compilar e rodar os testes (com cobertura)
+        # Os testes atuais são todos independentes de PostgreSQL/JADE em
+        # execução (usam apenas RedeSocial/EmotionState/SimuladorDireto/
+        # HeuristicaTwitter/TwitterDatasetLoader em memória), então não é
+        # necessário subir um serviço de banco aqui.
+        run: mvn --batch-mode --no-transfer-progress verify
+
+      - name: Publicar relatório de testes (Surefire)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: relatorio-testes
+          path: target/surefire-reports/
+
+      - name: Publicar relatório de cobertura (JaCoCo)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: relatorio-cobertura
+          path: target/site/jacoco/

@@ -1,0 +1,104 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="pt"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>LancadorComparacao.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">PoC - Propagação de Emoções em Redes Sociais</a> &gt; <a href="index.source.html" class="el_package">br.unb.poc.plataforma</a> &gt; <span class="el_source">LancadorComparacao.java</span></div><h1>LancadorComparacao.java</h1><pre class="source lang-java linenums">package br.unb.poc.plataforma;
+
+import br.unb.poc.analise.AnaliseComparativa;
+import br.unb.poc.analise.AnaliseExport;
+import br.unb.poc.dados.TwitterDatasetLoader;
+import br.unb.poc.dados.TwitterNetworkData;
+import br.unb.poc.interfaces.DashboardServer;
+
+import java.awt.Desktop;
+import java.io.IOException;
+import java.net.URI;
+import java.nio.file.Paths;
+import java.util.List;
+
+/**
+ * Compara a rede real do Twitter com topologias sintéticas (Small-World,
+ * Scale-Free, Modular) do mesmo tamanho e com a mesma quantidade de
+ * nós-semente por emoção, apresentando o resultado em um dashboard web
+ * dedicado — ver {@code docs/ETAPAS_EVOLUCAO.md}, seção &quot;Análise
+ * comparativa&quot;.
+ *
+ * &lt;p&gt;Uso:
+ * &lt;pre&gt;
+ *   java ... br.unb.poc.plataforma.LancadorComparacao &amp;lt;caminho&amp;gt; &amp;lt;egoId&amp;gt; [porta] [numCiclos] [alpha] [delta] [semente]
+ * &lt;/pre&gt;
+ *
+ * Ou via Maven:
+ * &lt;pre&gt;
+ *   mvn exec:java -Dexec.mainClass=br.unb.poc.plataforma.LancadorComparacao \
+ *     -Dexec.args=&quot;/caminho/para/o/dataset 11681802 8081 20 0.6 0.02&quot;
+ * &lt;/pre&gt;
+ */
+public final class LancadorComparacao {
+
+    private LancadorComparacao() {}
+
+    public static void main(String[] args) throws IOException {
+<span class="nc bnc" id="L38" title="All 2 branches missed.">        if (args.length &lt; 2) {</span>
+<span class="nc" id="L39">            System.err.println(&quot;Uso: LancadorComparacao &lt;caminho do dataset&gt; &lt;egoId&gt; [porta] [numCiclos] [alpha] [delta] [semente]&quot;);</span>
+<span class="nc" id="L40">            System.exit(1);</span>
+<span class="nc" id="L41">            return;</span>
+        }
+<span class="nc" id="L43">        String caminho = args[0];</span>
+<span class="nc" id="L44">        String egoId = args[1];</span>
+<span class="nc bnc" id="L45" title="All 2 branches missed.">        int porta = args.length &gt; 2 ? Integer.parseInt(args[2]) : 8081;</span>
+<span class="nc bnc" id="L46" title="All 2 branches missed.">        int numCiclos = args.length &gt; 3 ? Integer.parseInt(args[3]) : 20;</span>
+<span class="nc bnc" id="L47" title="All 2 branches missed.">        double alpha = args.length &gt; 4 ? Double.parseDouble(args[4]) : 0.6;</span>
+<span class="nc bnc" id="L48" title="All 2 branches missed.">        double delta = args.length &gt; 5 ? Double.parseDouble(args[5]) : 0.02;</span>
+<span class="nc bnc" id="L49" title="All 2 branches missed.">        long semente = args.length &gt; 6 ? Long.parseLong(args[6]) : 42L;</span>
+
+<span class="nc" id="L51">        System.out.println(&quot;=&quot;.repeat(70));</span>
+<span class="nc" id="L52">        System.out.println(&quot;  Análise comparativa: rede real do Twitter x redes sintéticas&quot;);</span>
+<span class="nc" id="L53">        System.out.println(&quot;=&quot;.repeat(70));</span>
+<span class="nc" id="L54">        System.out.printf(&quot;  Dataset : %s | ego=%s%n&quot;, caminho, egoId);</span>
+<span class="nc" id="L55">        System.out.printf(&quot;  Ciclos  : %d | alpha=%.2f | delta=%.2f%n&quot;, numCiclos, alpha, delta);</span>
+
+<span class="nc" id="L57">        TwitterNetworkData dadosTwitter = TwitterDatasetLoader.load(Paths.get(caminho), egoId, 1.0);</span>
+<span class="nc" id="L58">        System.out.println(&quot;  Rede real carregada: &quot; + dadosTwitter.getNumAgentes() + &quot; agentes.&quot;);</span>
+<span class="nc" id="L59">        System.out.println(&quot;  Gerando topologias sintéticas comparáveis (Small-World, Scale-Free, Modular)...&quot;);</span>
+
+<span class="nc" id="L61">        List&lt;AnaliseComparativa.Cenario&gt; cenarios =</span>
+<span class="nc" id="L62">                AnaliseComparativa.executar(dadosTwitter, alpha, delta, numCiclos, semente, &quot;Twitter (real)&quot;);</span>
+
+<span class="nc bnc" id="L64" title="All 2 branches missed.">        for (AnaliseComparativa.Cenario c : cenarios) {</span>
+<span class="nc" id="L65">            System.out.printf(&quot;  - %-24s | nós=%-4d arestas=%-5d grau médio=%.2f agrupamento=%.3f dist.média=%.2f%n&quot;,</span>
+<span class="nc" id="L66">                    c.nome(), c.estrutura().numNos(), c.estrutura().numArestas(),</span>
+<span class="nc" id="L67">                    c.estrutura().grauMedio(), c.estrutura().coeficienteAgrupamentoMedio(),</span>
+<span class="nc" id="L68">                    c.estrutura().distanciaMediaAprox());</span>
+<span class="nc" id="L69">        }</span>
+
+<span class="nc" id="L71">        String json = AnaliseExport.paraJson(cenarios);</span>
+
+<span class="nc" id="L73">        DashboardServer servidor = new DashboardServer(porta);</span>
+<span class="nc" id="L74">        servidor.usarPaginaComparacaoComoInicial(true);</span>
+<span class="nc" id="L75">        servidor.atualizarComparacao(json);</span>
+<span class="nc" id="L76">        servidor.iniciar();</span>
+<span class="nc" id="L77">        abrirNavegador(porta);</span>
+<span class="nc" id="L78">    }</span>
+
+    private static void abrirNavegador(int porta) {
+<span class="nc" id="L81">        String url = &quot;http://localhost:&quot; + porta + &quot;/&quot;;</span>
+<span class="nc" id="L82">        System.out.println();</span>
+<span class="nc" id="L83">        System.out.println(&quot;  Comparação disponível em: &quot; + url);</span>
+<span class="nc" id="L84">        System.out.println();</span>
+        try {
+<span class="nc bnc" id="L86" title="All 4 branches missed.">            if (Desktop.isDesktopSupported() &amp;&amp; Desktop.getDesktop().isSupported(Desktop.Action.BROWSE)) {</span>
+<span class="nc" id="L87">                Desktop.getDesktop().browse(new URI(url));</span>
+<span class="nc" id="L88">                return;</span>
+            }
+<span class="nc" id="L90">        } catch (Exception e) {</span>
+<span class="nc" id="L91">            System.out.println(&quot;  Não foi possível abrir automaticamente via Desktop (&quot; + e.getMessage() + &quot;).&quot;);</span>
+<span class="nc" id="L92">        }</span>
+<span class="nc" id="L93">        String so = System.getProperty(&quot;os.name&quot;, &quot;&quot;).toLowerCase();</span>
+<span class="nc bnc" id="L94" title="All 2 branches missed.">        String[] comando = so.contains(&quot;win&quot;)</span>
+<span class="nc" id="L95">                ? new String[]{&quot;rundll32&quot;, &quot;url.dll,FileProtocolHandler&quot;, url}</span>
+<span class="nc bnc" id="L96" title="All 2 branches missed.">                : so.contains(&quot;mac&quot;) ? new String[]{&quot;open&quot;, url} : new String[]{&quot;xdg-open&quot;, url};</span>
+        try {
+<span class="nc" id="L98">            new ProcessBuilder(comando).start();</span>
+<span class="nc" id="L99">        } catch (IOException e) {</span>
+<span class="nc" id="L100">            System.out.println(&quot;  Abra manualmente no navegador: &quot; + url);</span>
+<span class="nc" id="L101">        }</span>
+<span class="nc" id="L102">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.11.202310140853</span></div></body></html>

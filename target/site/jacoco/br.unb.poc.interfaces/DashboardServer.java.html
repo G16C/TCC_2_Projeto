@@ -1,0 +1,177 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="pt"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>DashboardServer.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">PoC - Propagação de Emoções em Redes Sociais</a> &gt; <a href="index.source.html" class="el_package">br.unb.poc.interfaces</a> &gt; <span class="el_source">DashboardServer.java</span></div><h1>DashboardServer.java</h1><pre class="source lang-java linenums">package br.unb.poc.interfaces;
+
+import com.sun.net.httpserver.HttpExchange;
+import com.sun.net.httpserver.HttpServer;
+
+import java.io.IOException;
+import java.io.OutputStream;
+import java.net.InetSocketAddress;
+import java.net.URLDecoder;
+import java.nio.charset.StandardCharsets;
+import java.util.LinkedHashMap;
+import java.util.Map;
+import java.util.function.Function;
+
+/**
+ * Etapa 5.0 — Interface gráfica.
+ *
+ * &lt;p&gt;Servidor HTTP embutido (apenas classes do próprio JDK, sem
+ * dependência de um servlet container) que expõe:
+ * &lt;ul&gt;
+ *   &lt;li&gt;{@code GET /} — dashboard (HTML/CSS/JS autocontido, sem CDN);&lt;/li&gt;
+ *   &lt;li&gt;{@code GET /api/resultado.json} — último resultado disponível,
+ *       no formato produzido por {@code RelatorioExport} (Etapa 4.9);&lt;/li&gt;
+ *   &lt;li&gt;{@code GET /api/executar?...} — opcional; se um reexecutor for
+ *       fornecido, roda um novo cenário com os parâmetros da query string
+ *       e retorna o novo JSON (usado pela página {@code /executar});&lt;/li&gt;
+ *   &lt;li&gt;{@code GET /executar} — página dedicada para configurar e rodar
+ *       um novo cenário, separada do dashboard principal;&lt;/li&gt;
+ *   &lt;li&gt;{@code GET /comparacao} — dashboard de comparação entre a rede
+ *       real do Twitter e topologias sintéticas equivalentes;&lt;/li&gt;
+ *   &lt;li&gt;{@code GET /api/comparacao.json} — dados da comparação, no
+ *       formato produzido por {@code AnaliseExport}.&lt;/li&gt;
+ * &lt;/ul&gt;
+ *
+ * &lt;p&gt;O servidor não sabe nada sobre JADE, PostgreSQL ou o dataset do
+ * Twitter — ele apenas serve o contrato de dados já pronto, o que
+ * permite reaproveitá-lo tanto para o modo de demonstração quanto para
+ * uma execução real (bastando alimentar {@link #atualizarResultado}).
+ */
+public final class DashboardServer {
+
+    private final int porta;
+<span class="nc" id="L43">    private volatile String jsonAtual = &quot;{}&quot;;</span>
+<span class="nc" id="L44">    private volatile String jsonComparacao = &quot;{}&quot;;</span>
+<span class="nc" id="L45">    private volatile boolean paginaInicialComparacao = false;</span>
+    private Function&lt;Map&lt;String, String&gt;, String&gt; reexecutor;
+    private HttpServer server;
+
+<span class="nc" id="L49">    public DashboardServer(int porta) {</span>
+<span class="nc" id="L50">        this.porta = porta;</span>
+<span class="nc" id="L51">    }</span>
+
+    /** Define a função chamada por {@code GET /api/executar}; pode ser {@code null}. */
+    public void definirReexecutor(Function&lt;Map&lt;String, String&gt;, String&gt; reexecutor) {
+<span class="nc" id="L55">        this.reexecutor = reexecutor;</span>
+<span class="nc" id="L56">    }</span>
+
+    /** Atualiza o resultado servido por {@code /api/resultado.json}. */
+    public void atualizarResultado(String json) {
+<span class="nc bnc" id="L60" title="All 2 branches missed.">        this.jsonAtual = (json == null) ? &quot;{}&quot; : json;</span>
+<span class="nc" id="L61">    }</span>
+
+    /** Atualiza os dados servidos por {@code /api/comparacao.json}. */
+    public void atualizarComparacao(String json) {
+<span class="nc bnc" id="L65" title="All 2 branches missed.">        this.jsonComparacao = (json == null) ? &quot;{}&quot; : json;</span>
+<span class="nc" id="L66">    }</span>
+
+    /**
+     * Quando {@code true}, {@code GET /} serve o dashboard de comparação
+     * em vez do dashboard de rede única. Útil para um processo dedicado
+     * apenas à comparação (ver {@code LancadorComparacao}).
+     */
+    public void usarPaginaComparacaoComoInicial(boolean valor) {
+<span class="nc" id="L74">        this.paginaInicialComparacao = valor;</span>
+<span class="nc" id="L75">    }</span>
+
+    public void iniciar() throws IOException {
+        try {
+<span class="nc" id="L79">            server = HttpServer.create(new InetSocketAddress(porta), 0);</span>
+<span class="nc" id="L80">        } catch (java.net.BindException e) {</span>
+<span class="nc" id="L81">            throw new IOException(</span>
+                    &quot;Não foi possível abrir a porta &quot; + porta + &quot; (já está em uso por outro processo?). &quot;
+                    + &quot;Tente outra porta, ex.: informe &quot; + (porta + 1) + &quot; nos argumentos.&quot;, e);
+<span class="nc" id="L84">        }</span>
+<span class="nc" id="L85">        server.createContext(&quot;/&quot;, this::servirPaginaPrincipal);</span>
+<span class="nc" id="L86">        server.createContext(&quot;/api/resultado.json&quot;, this::servirResultado);</span>
+<span class="nc" id="L87">        server.createContext(&quot;/api/executar&quot;, this::servirExecucao);</span>
+<span class="nc" id="L88">        server.createContext(&quot;/executar&quot;, this::servirPaginaExecutar);</span>
+<span class="nc" id="L89">        server.createContext(&quot;/comparacao&quot;, this::servirPaginaComparacao);</span>
+<span class="nc" id="L90">        server.createContext(&quot;/api/comparacao.json&quot;, this::servirComparacao);</span>
+<span class="nc" id="L91">        server.setExecutor(null);</span>
+<span class="nc" id="L92">        server.start();</span>
+<span class="nc" id="L93">        System.out.println(&quot;[Interface] Dashboard disponível em http://localhost:&quot; + porta + &quot;/&quot;);</span>
+<span class="nc" id="L94">    }</span>
+
+    public void parar() {
+<span class="nc bnc" id="L97" title="All 2 branches missed.">        if (server != null) server.stop(0);</span>
+<span class="nc" id="L98">    }</span>
+
+    private void servirPaginaPrincipal(HttpExchange exchange) throws IOException {
+<span class="nc bnc" id="L101" title="All 2 branches missed.">        if (!&quot;/&quot;.equals(exchange.getRequestURI().getPath())) {</span>
+<span class="nc" id="L102">            exchange.sendResponseHeaders(404, -1);</span>
+<span class="nc" id="L103">            return;</span>
+        }
+<span class="nc bnc" id="L105" title="All 2 branches missed.">        String pagina = paginaInicialComparacao ? ComparacaoHtml.PAGINA : DashboardHtml.PAGINA;</span>
+<span class="nc" id="L106">        responder(exchange, 200, &quot;text/html; charset=utf-8&quot;, pagina);</span>
+<span class="nc" id="L107">    }</span>
+
+    private void servirPaginaComparacao(HttpExchange exchange) throws IOException {
+<span class="nc" id="L110">        responder(exchange, 200, &quot;text/html; charset=utf-8&quot;, ComparacaoHtml.PAGINA);</span>
+<span class="nc" id="L111">    }</span>
+
+    private void servirPaginaExecutar(HttpExchange exchange) throws IOException {
+<span class="nc" id="L114">        responder(exchange, 200, &quot;text/html; charset=utf-8&quot;, ExecutarHtml.PAGINA);</span>
+<span class="nc" id="L115">    }</span>
+
+    private void servirComparacao(HttpExchange exchange) throws IOException {
+<span class="nc" id="L118">        cabecalhosCors(exchange);</span>
+<span class="nc" id="L119">        responder(exchange, 200, &quot;application/json; charset=utf-8&quot;, jsonComparacao);</span>
+<span class="nc" id="L120">    }</span>
+
+    private void servirResultado(HttpExchange exchange) throws IOException {
+<span class="nc" id="L123">        cabecalhosCors(exchange);</span>
+<span class="nc" id="L124">        responder(exchange, 200, &quot;application/json; charset=utf-8&quot;, jsonAtual);</span>
+<span class="nc" id="L125">    }</span>
+
+    private void servirExecucao(HttpExchange exchange) throws IOException {
+<span class="nc" id="L128">        cabecalhosCors(exchange);</span>
+<span class="nc bnc" id="L129" title="All 2 branches missed.">        if (reexecutor == null) {</span>
+<span class="nc" id="L130">            responder(exchange, 501, &quot;application/json; charset=utf-8&quot;,</span>
+                    &quot;{\&quot;erro\&quot;:\&quot;Reexecução não disponível neste modo.\&quot;}&quot;);
+<span class="nc" id="L132">            return;</span>
+        }
+        try {
+<span class="nc" id="L135">            Map&lt;String, String&gt; parametros = parametrosDaQuery(exchange.getRequestURI().getRawQuery());</span>
+<span class="nc" id="L136">            String novoJson = reexecutor.apply(parametros);</span>
+<span class="nc" id="L137">            atualizarResultado(novoJson);</span>
+<span class="nc" id="L138">            responder(exchange, 200, &quot;application/json; charset=utf-8&quot;, novoJson);</span>
+<span class="nc" id="L139">        } catch (RuntimeException e) {</span>
+<span class="nc" id="L140">            responder(exchange, 400, &quot;application/json; charset=utf-8&quot;,</span>
+<span class="nc" id="L141">                    &quot;{\&quot;erro\&quot;:&quot; + jsonStr(e.getMessage()) + &quot;}&quot;);</span>
+<span class="nc" id="L142">        }</span>
+<span class="nc" id="L143">    }</span>
+
+    private static void cabecalhosCors(HttpExchange exchange) {
+<span class="nc" id="L146">        exchange.getResponseHeaders().add(&quot;Access-Control-Allow-Origin&quot;, &quot;*&quot;);</span>
+<span class="nc" id="L147">    }</span>
+
+    private static void responder(HttpExchange exchange, int status, String tipo, String corpo) throws IOException {
+<span class="nc" id="L150">        byte[] bytes = corpo.getBytes(StandardCharsets.UTF_8);</span>
+<span class="nc" id="L151">        exchange.getResponseHeaders().add(&quot;Content-Type&quot;, tipo);</span>
+<span class="nc" id="L152">        exchange.sendResponseHeaders(status, bytes.length);</span>
+<span class="nc" id="L153">        try (OutputStream out = exchange.getResponseBody()) {</span>
+<span class="nc" id="L154">            out.write(bytes);</span>
+        }
+<span class="nc" id="L156">    }</span>
+
+    private static Map&lt;String, String&gt; parametrosDaQuery(String query) {
+<span class="nc" id="L159">        Map&lt;String, String&gt; parametros = new LinkedHashMap&lt;&gt;();</span>
+<span class="nc bnc" id="L160" title="All 4 branches missed.">        if (query == null || query.isBlank()) return parametros;</span>
+<span class="nc bnc" id="L161" title="All 2 branches missed.">        for (String par : query.split(&quot;&amp;&quot;)) {</span>
+<span class="nc" id="L162">            int pos = par.indexOf('=');</span>
+<span class="nc bnc" id="L163" title="All 2 branches missed.">            String chave = pos &lt; 0 ? par : par.substring(0, pos);</span>
+<span class="nc bnc" id="L164" title="All 2 branches missed.">            String valor = pos &lt; 0 ? &quot;&quot; : par.substring(pos + 1);</span>
+<span class="nc" id="L165">            parametros.put(</span>
+<span class="nc" id="L166">                    URLDecoder.decode(chave, StandardCharsets.UTF_8),</span>
+<span class="nc" id="L167">                    URLDecoder.decode(valor, StandardCharsets.UTF_8));</span>
+        }
+<span class="nc" id="L169">        return parametros;</span>
+    }
+
+    private static String jsonStr(String valor) {
+<span class="nc bnc" id="L173" title="All 2 branches missed.">        if (valor == null) return &quot;null&quot;;</span>
+<span class="nc" id="L174">        return &quot;\&quot;&quot; + valor.replace(&quot;\\&quot;, &quot;\\\\&quot;).replace(&quot;\&quot;&quot;, &quot;\\\&quot;&quot;) + &quot;\&quot;&quot;;</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.11.202310140853</span></div></body></html>

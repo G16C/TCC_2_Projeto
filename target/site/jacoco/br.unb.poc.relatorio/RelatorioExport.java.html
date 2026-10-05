@@ -1,0 +1,134 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="pt"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>RelatorioExport.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">PoC - Propagação de Emoções em Redes Sociais</a> &gt; <a href="index.source.html" class="el_package">br.unb.poc.relatorio</a> &gt; <span class="el_source">RelatorioExport.java</span></div><h1>RelatorioExport.java</h1><pre class="source lang-java linenums">package br.unb.poc.relatorio;
+
+import br.unb.poc.modelo.RedeSocial;
+import br.unb.poc.modelo.SimulationConfiguration;
+import br.unb.poc.modelo.emocao.Emotion;
+import br.unb.poc.modelo.emocao.EmotionState;
+
+import java.util.List;
+import java.util.Map;
+
+/**
+ * Etapa 4.9 — Preparar dados para a interface.
+ *
+ * &lt;p&gt;Converte a topologia da rede ({@link RedeSocial}) e o histórico de
+ * estados emocionais por ciclo em um único documento JSON, desacoplado
+ * de JADE, PostgreSQL e Swing/HTML. Qualquer camada de apresentação
+ * (dashboard web, app desktop, exportação para o TCC) pode consumir o
+ * mesmo contrato de dados.
+ *
+ * &lt;p&gt;Formato produzido:
+ * &lt;pre&gt;
+ * {
+ *   &quot;meta&quot;: { &quot;numAgentes&quot;, &quot;numCiclos&quot;, &quot;alpha&quot;, &quot;delta&quot;, &quot;fonteDados&quot;,
+ *             &quot;twitterEgoId&quot;, &quot;indiceSemente&quot;, &quot;semente&quot; },
+ *   &quot;nos&quot;: [ { &quot;id&quot;, &quot;idExterno&quot;, &quot;grau&quot; }, ... ],
+ *   &quot;arestas&quot;: [ { &quot;origem&quot;, &quot;destino&quot;, &quot;peso&quot; }, ... ],
+ *   &quot;ciclos&quot;: [ { &quot;ciclo&quot;, &quot;media&quot;: {anger,disgust,joy,sadness},
+ *                 &quot;estados&quot;: [ {&quot;id&quot;,&quot;anger&quot;,&quot;disgust&quot;,&quot;joy&quot;,&quot;sadness&quot;,&quot;dominante&quot;}, ... ] }, ... ]
+ * }
+ * &lt;/pre&gt;
+ */
+public final class RelatorioExport {
+
+    private RelatorioExport() {}
+
+    public static String paraJson(
+            RedeSocial rede,
+            SimulationConfiguration config,
+            List&lt;Map&lt;Integer, EmotionState&gt;&gt; historico,
+            int indiceSemente) {
+
+<span class="fc" id="L42">        int n = rede.getNumAgentes();</span>
+<span class="fc" id="L43">        StringBuilder json = new StringBuilder(4096);</span>
+
+<span class="fc" id="L45">        json.append(&quot;{&quot;);</span>
+<span class="fc" id="L46">        escreverMeta(json, rede, config, historico.size(), indiceSemente);</span>
+<span class="fc" id="L47">        json.append(&quot;,\&quot;nos\&quot;:[&quot;);</span>
+<span class="fc bfc" id="L48" title="All 2 branches covered.">        for (int i = 0; i &lt; n; i++) {</span>
+<span class="fc bfc" id="L49" title="All 2 branches covered.">            if (i &gt; 0) json.append(',');</span>
+<span class="fc" id="L50">            json.append(&quot;{\&quot;id\&quot;:&quot;).append(i)</span>
+<span class="fc" id="L51">                .append(&quot;,\&quot;idExterno\&quot;:&quot;).append(Json.str(rede.getIdExterno(i)))</span>
+<span class="fc" id="L52">                .append(&quot;,\&quot;grau\&quot;:&quot;).append(rede.getVizinhos(i).size())</span>
+<span class="fc" id="L53">                .append('}');</span>
+        }
+<span class="fc" id="L55">        json.append(&quot;],\&quot;arestas\&quot;:[&quot;);</span>
+<span class="fc" id="L56">        boolean primeiraAresta = true;</span>
+<span class="fc bfc" id="L57" title="All 2 branches covered.">        for (int i = 0; i &lt; n; i++) {</span>
+<span class="fc bfc" id="L58" title="All 2 branches covered.">            for (Map.Entry&lt;Integer, Double&gt; vizinho : rede.getVizinhosComPesos(i).entrySet()) {</span>
+<span class="fc" id="L59">                int j = vizinho.getKey();</span>
+<span class="fc bfc" id="L60" title="All 2 branches covered.">                if (j &lt;= i) continue; // grafo não-dirigido: evita duplicar a aresta i-j/j-i</span>
+<span class="fc bfc" id="L61" title="All 2 branches covered.">                if (!primeiraAresta) json.append(',');</span>
+<span class="fc" id="L62">                primeiraAresta = false;</span>
+<span class="fc" id="L63">                json.append(&quot;{\&quot;origem\&quot;:&quot;).append(i)</span>
+<span class="fc" id="L64">                    .append(&quot;,\&quot;destino\&quot;:&quot;).append(j)</span>
+<span class="fc" id="L65">                    .append(&quot;,\&quot;peso\&quot;:&quot;).append(Json.num(vizinho.getValue()))</span>
+<span class="fc" id="L66">                    .append('}');</span>
+<span class="fc" id="L67">            }</span>
+        }
+<span class="fc" id="L69">        json.append(&quot;],\&quot;ciclos\&quot;:[&quot;);</span>
+<span class="fc bfc" id="L70" title="All 2 branches covered.">        for (int c = 0; c &lt; historico.size(); c++) {</span>
+<span class="fc bfc" id="L71" title="All 2 branches covered.">            if (c &gt; 0) json.append(',');</span>
+<span class="fc" id="L72">            escreverCiclo(json, c, historico.get(c), n);</span>
+        }
+<span class="fc" id="L74">        json.append(&quot;]}&quot;);</span>
+<span class="fc" id="L75">        return json.toString();</span>
+    }
+
+    private static void escreverMeta(
+            StringBuilder json, RedeSocial rede, SimulationConfiguration config,
+            int numCiclosGerados, int indiceSemente) {
+
+<span class="fc" id="L82">        json.append(&quot;\&quot;meta\&quot;:{&quot;)</span>
+<span class="fc" id="L83">            .append(&quot;\&quot;numAgentes\&quot;:&quot;).append(rede.getNumAgentes())</span>
+<span class="fc" id="L84">            .append(&quot;,\&quot;numCiclos\&quot;:&quot;).append(numCiclosGerados)</span>
+<span class="fc" id="L85">            .append(&quot;,\&quot;alpha\&quot;:&quot;).append(Json.num(config.getAlpha()))</span>
+<span class="fc" id="L86">            .append(&quot;,\&quot;delta\&quot;:&quot;).append(Json.num(config.getDelta()))</span>
+<span class="fc" id="L87">            .append(&quot;,\&quot;fonteDados\&quot;:&quot;).append(Json.str(config.getFonteDados().name()))</span>
+<span class="fc bfc" id="L88" title="All 2 branches covered.">            .append(&quot;,\&quot;twitterEgoId\&quot;:&quot;).append(rede.usaDadosTwitter()</span>
+<span class="fc" id="L89">                    ? Json.str(rede.getDadosTwitter().getEgoId()) : &quot;null&quot;)</span>
+<span class="fc" id="L90">            .append(&quot;,\&quot;indiceSemente\&quot;:&quot;).append(indiceSemente)</span>
+<span class="fc" id="L91">            .append(&quot;,\&quot;semente\&quot;:&quot;).append(config.getSemente())</span>
+<span class="fc" id="L92">            .append('}');</span>
+<span class="fc" id="L93">    }</span>
+
+    private static void escreverCiclo(
+            StringBuilder json, int ciclo, Map&lt;Integer, EmotionState&gt; estados, int numAgentes) {
+
+<span class="fc" id="L98">        double somaAnger = 0, somaDisgust = 0, somaJoy = 0, somaSadness = 0;</span>
+<span class="fc" id="L99">        int contados = 0;</span>
+
+<span class="fc" id="L101">        json.append(&quot;{\&quot;ciclo\&quot;:&quot;).append(ciclo).append(&quot;,\&quot;estados\&quot;:[&quot;);</span>
+<span class="fc bfc" id="L102" title="All 2 branches covered.">        for (int i = 0; i &lt; numAgentes; i++) {</span>
+<span class="fc" id="L103">            EmotionState estado = estados.get(i);</span>
+<span class="pc bpc" id="L104" title="1 of 2 branches missed.">            if (estado == null) continue;</span>
+<span class="fc bfc" id="L105" title="All 2 branches covered.">            if (contados &gt; 0) json.append(',');</span>
+<span class="fc" id="L106">            contados++;</span>
+
+<span class="fc" id="L108">            double anger = estado.getIntensity(Emotion.ANGER);</span>
+<span class="fc" id="L109">            double disgust = estado.getIntensity(Emotion.DISGUST);</span>
+<span class="fc" id="L110">            double joy = estado.getIntensity(Emotion.JOY);</span>
+<span class="fc" id="L111">            double sadness = estado.getIntensity(Emotion.SADNESS);</span>
+<span class="fc" id="L112">            somaAnger += anger;</span>
+<span class="fc" id="L113">            somaDisgust += disgust;</span>
+<span class="fc" id="L114">            somaJoy += joy;</span>
+<span class="fc" id="L115">            somaSadness += sadness;</span>
+
+<span class="fc" id="L117">            json.append(&quot;{\&quot;id\&quot;:&quot;).append(i)</span>
+<span class="fc" id="L118">                .append(&quot;,\&quot;anger\&quot;:&quot;).append(Json.num(anger))</span>
+<span class="fc" id="L119">                .append(&quot;,\&quot;disgust\&quot;:&quot;).append(Json.num(disgust))</span>
+<span class="fc" id="L120">                .append(&quot;,\&quot;joy\&quot;:&quot;).append(Json.num(joy))</span>
+<span class="fc" id="L121">                .append(&quot;,\&quot;sadness\&quot;:&quot;).append(Json.num(sadness))</span>
+<span class="fc" id="L122">                .append(&quot;,\&quot;dominante\&quot;:&quot;).append(Json.str(estado.getRotuloDominante()))</span>
+<span class="fc" id="L123">                .append('}');</span>
+        }
+<span class="fc" id="L125">        int base = Math.max(contados, 1);</span>
+<span class="fc" id="L126">        json.append(&quot;],\&quot;media\&quot;:{&quot;)</span>
+<span class="fc" id="L127">            .append(&quot;\&quot;anger\&quot;:&quot;).append(Json.num(somaAnger / base))</span>
+<span class="fc" id="L128">            .append(&quot;,\&quot;disgust\&quot;:&quot;).append(Json.num(somaDisgust / base))</span>
+<span class="fc" id="L129">            .append(&quot;,\&quot;joy\&quot;:&quot;).append(Json.num(somaJoy / base))</span>
+<span class="fc" id="L130">            .append(&quot;,\&quot;sadness\&quot;:&quot;).append(Json.num(somaSadness / base))</span>
+<span class="fc" id="L131">            .append(&quot;}}&quot;);</span>
+<span class="fc" id="L132">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.11.202310140853</span></div></body></html>

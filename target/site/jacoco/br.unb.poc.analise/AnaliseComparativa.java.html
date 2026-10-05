@@ -1,0 +1,111 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="pt"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>AnaliseComparativa.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">PoC - Propagação de Emoções em Redes Sociais</a> &gt; <a href="index.source.html" class="el_package">br.unb.poc.analise</a> &gt; <span class="el_source">AnaliseComparativa.java</span></div><h1>AnaliseComparativa.java</h1><pre class="source lang-java linenums">package br.unb.poc.analise;
+
+import br.unb.poc.dados.TwitterNetworkData;
+import br.unb.poc.modelo.RedeSocial;
+import br.unb.poc.modelo.SimulationConfiguration;
+import br.unb.poc.modelo.emocao.EmotionState;
+import br.unb.poc.modelo.topologia.TipoTopologia;
+import br.unb.poc.dados.FonteDados;
+import br.unb.poc.relatorio.EstadosIniciais;
+import br.unb.poc.relatorio.SimuladorDireto;
+
+import java.util.List;
+import java.util.Map;
+
+/**
+ * Etapa de análise comparativa: executa a propagação emocional sobre a
+ * rede real do Twitter e sobre topologias sintéticas (Small-World,
+ * Scale-Free, Modular) do &lt;b&gt;mesmo tamanho&lt;/b&gt;, com o &lt;b&gt;mesmo número de
+ * nós-semente por emoção&lt;/b&gt; (ver {@link SementesComparaveis}), variando
+ * apenas a topologia. Calcula métricas estruturais e de propagação para
+ * cada cenário, permitindo uma comparação direta entre dados sintéticos e
+ * dados reais — o objetivo desta etapa.
+ */
+public final class AnaliseComparativa {
+
+    private AnaliseComparativa() {}
+
+    /** Um cenário executado (rede real ou sintética) com suas métricas já calculadas. */
+<span class="nc" id="L29">    public record Cenario(</span>
+            String nome,
+            RedeSocial rede,
+            List&lt;Map&lt;Integer, EmotionState&gt;&gt; historico,
+            MetricasEstruturais estrutura,
+            MetricasPropagacao propagacao) {}
+
+    /**
+     * Executa a rede base fornecida (real do Twitter, ou a rede sintética
+     * de demonstração — {@code nomeCenarioBase} identifica qual das duas
+     * é, para a interface não rotular incorretamente) e três topologias
+     * sintéticas comparáveis (mesmo número de nós, mesma quantidade de
+     * sementes por emoção), retornando um cenário para cada uma. O
+     * primeiro item da lista é sempre a rede base.
+     */
+    public static List&lt;Cenario&gt; executar(
+            TwitterNetworkData dadosTwitter,
+            double alpha,
+            double delta,
+            int numCiclos,
+            long semente,
+            String nomeCenarioBase) {
+
+<span class="nc" id="L52">        SimulationConfiguration configReal = SimulationConfiguration.builder()</span>
+<span class="nc" id="L53">                .fonteDados(FonteDados.TWITTER_SOCIAL_CIRCLES)</span>
+<span class="nc" id="L54">                .tipoTopologia(TipoTopologia.FONTE_EXTERNA)</span>
+<span class="nc" id="L55">                .twitterDatasetPath(&quot;(carregado externamente)&quot;)</span>
+<span class="nc" id="L56">                .twitterEgoId(dadosTwitter.getEgoId())</span>
+<span class="nc" id="L57">                .alpha(alpha)</span>
+<span class="nc" id="L58">                .delta(delta)</span>
+<span class="nc" id="L59">                .numCiclos(numCiclos)</span>
+<span class="nc" id="L60">                .semente(semente)</span>
+<span class="nc" id="L61">                .build();</span>
+
+<span class="nc" id="L63">        RedeSocial redeReal = new RedeSocial(configReal, dadosTwitter);</span>
+<span class="nc" id="L64">        Map&lt;Integer, EmotionState&gt; estadosReal = EstadosIniciais.inferirComHeuristica(redeReal);</span>
+<span class="nc" id="L65">        List&lt;Map&lt;Integer, EmotionState&gt;&gt; historicoReal = SimuladorDireto.executar(redeReal, configReal, estadosReal);</span>
+
+<span class="nc" id="L67">        var contagemSementes = SementesComparaveis.contar(estadosReal);</span>
+
+<span class="nc" id="L69">        List&lt;Cenario&gt; cenarios = new java.util.ArrayList&lt;&gt;();</span>
+<span class="nc" id="L70">        cenarios.add(construirCenario(nomeCenarioBase, redeReal, configReal, historicoReal));</span>
+
+<span class="nc" id="L72">        int numAgentes = redeReal.getNumAgentes();</span>
+<span class="nc bnc" id="L73" title="All 2 branches missed.">        for (TipoTopologia tipo : List.of(TipoTopologia.SMALL_WORLD, TipoTopologia.SCALE_FREE, TipoTopologia.MODULAR)) {</span>
+<span class="nc" id="L74">            SimulationConfiguration configSint = SimulationConfiguration.builder()</span>
+<span class="nc" id="L75">                    .numAgentes(numAgentes)</span>
+<span class="nc" id="L76">                    .fonteDados(FonteDados.SINTETICA)</span>
+<span class="nc" id="L77">                    .tipoTopologia(tipo)</span>
+<span class="nc" id="L78">                    .alpha(alpha)</span>
+<span class="nc" id="L79">                    .delta(delta)</span>
+<span class="nc" id="L80">                    .numCiclos(numCiclos)</span>
+<span class="nc" id="L81">                    .semente(semente + tipo.ordinal() + 1)</span>
+<span class="nc" id="L82">                    .build();</span>
+
+<span class="nc" id="L84">            RedeSocial redeSint = new RedeSocial(configSint);</span>
+<span class="nc" id="L85">            Map&lt;Integer, EmotionState&gt; estadosSint =</span>
+<span class="nc" id="L86">                    SementesComparaveis.atribuir(redeSint, contagemSementes, semente + tipo.ordinal() + 100);</span>
+<span class="nc" id="L87">            List&lt;Map&lt;Integer, EmotionState&gt;&gt; historicoSint = SimuladorDireto.executar(redeSint, configSint, estadosSint);</span>
+
+<span class="nc" id="L89">            cenarios.add(construirCenario(nomeAmigavel(tipo), redeSint, configSint, historicoSint));</span>
+<span class="nc" id="L90">        }</span>
+
+<span class="nc" id="L92">        return cenarios;</span>
+    }
+
+    private static Cenario construirCenario(
+            String nome, RedeSocial rede, SimulationConfiguration config, List&lt;Map&lt;Integer, EmotionState&gt;&gt; historico) {
+<span class="nc" id="L97">        MetricasEstruturais estrutura = MetricasEstruturais.calcular(rede);</span>
+<span class="nc" id="L98">        MetricasPropagacao propagacao = MetricasPropagacao.calcular(historico);</span>
+<span class="nc" id="L99">        return new Cenario(nome, rede, historico, estrutura, propagacao);</span>
+    }
+
+    private static String nomeAmigavel(TipoTopologia tipo) {
+<span class="nc bnc" id="L103" title="All 4 branches missed.">        return switch (tipo) {</span>
+<span class="nc" id="L104">            case SMALL_WORLD -&gt; &quot;Small-World (sintética)&quot;;</span>
+<span class="nc" id="L105">            case SCALE_FREE -&gt; &quot;Scale-Free (sintética)&quot;;</span>
+<span class="nc" id="L106">            case MODULAR -&gt; &quot;Modular (sintética)&quot;;</span>
+<span class="nc" id="L107">            case FONTE_EXTERNA -&gt; &quot;Fonte externa&quot;;</span>
+        };
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.11.202310140853</span></div></body></html>

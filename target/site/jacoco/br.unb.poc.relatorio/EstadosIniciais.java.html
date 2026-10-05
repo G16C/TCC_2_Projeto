@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="pt"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>EstadosIniciais.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">PoC - Propagação de Emoções em Redes Sociais</a> &gt; <a href="index.source.html" class="el_package">br.unb.poc.relatorio</a> &gt; <span class="el_source">EstadosIniciais.java</span></div><h1>EstadosIniciais.java</h1><pre class="source lang-java linenums">package br.unb.poc.relatorio;
+
+import br.unb.poc.modelo.RedeSocial;
+import br.unb.poc.modelo.emocao.EmotionState;
+import br.unb.poc.modelo.emocao.HeuristicaTwitter;
+
+import java.util.HashMap;
+import java.util.Map;
+
+/**
+ * Ponto único para inferir o estado emocional inicial de uma rede a
+ * partir de dados do Twitter, reproduzindo a mesma regra usada por
+ * {@code AgenteControle}/{@code UsuarioAgent} (Etapa 4.5/4.6): quando a
+ * rede vem do Twitter, o estado inicial de cada agente é o inferido pela
+ * heurística a partir das suas features; agentes sem features
+ * reconhecidas ficam neutros.
+ *
+ * &lt;p&gt;Extraído de {@code LancadorInterface} para ser reaproveitado também
+ * por {@code AnaliseComparativa}, evitando duas implementações divergentes
+ * da mesma regra.
+ */
+public final class EstadosIniciais {
+
+    private EstadosIniciais() {}
+
+    /** Infere o estado inicial de cada agente da rede via {@link HeuristicaTwitter}. */
+    public static Map&lt;Integer, EmotionState&gt; inferirComHeuristica(RedeSocial rede) {
+<span class="nc" id="L28">        HeuristicaTwitter heuristica = new HeuristicaTwitter();</span>
+<span class="nc" id="L29">        Map&lt;Integer, EmotionState&gt; estados = new HashMap&lt;&gt;();</span>
+<span class="nc bnc" id="L30" title="All 2 branches missed.">        for (int i = 0; i &lt; rede.getNumAgentes(); i++) {</span>
+<span class="nc" id="L31">            estados.put(i, heuristica.inferir(rede.getFeaturesTwitter(i), rede.getNomesFeaturesTwitter()));</span>
+        }
+<span class="nc" id="L33">        return estados;</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.11.202310140853</span></div></body></html>

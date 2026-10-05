@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="pt"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>SimuladorDireto.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">PoC - Propagação de Emoções em Redes Sociais</a> &gt; <a href="index.source.html" class="el_package">br.unb.poc.relatorio</a> &gt; <span class="el_source">SimuladorDireto.java</span></div><h1>SimuladorDireto.java</h1><pre class="source lang-java linenums">package br.unb.poc.relatorio;
+
+import br.unb.poc.modelo.RedeSocial;
+import br.unb.poc.modelo.SimulationConfiguration;
+import br.unb.poc.modelo.emocao.EmotionPropagationModel;
+import br.unb.poc.modelo.emocao.EmotionState;
+import br.unb.poc.modelo.emocao.FanEmotionModel;
+
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
+/**
+ * Execução síncrona e determinística do mesmo modelo de propagação usado
+ * por {@code UsuarioAgent} ({@link FanEmotionModel}), porém sem JADE, sem
+ * mensagens ACL e sem PostgreSQL.
+ *
+ * &lt;p&gt;&lt;b&gt;Finalidade:&lt;/b&gt; alimentar a camada de interface (Etapas 4.9/5.0)
+ * de forma imediata e testável — por exemplo, para pré-visualizar um
+ * cenário antes de rodar a simulação completa via agentes, ou para rodar
+ * a interface em ambientes sem plataforma JADE/banco disponíveis.
+ *
+ * &lt;p&gt;Esta classe &lt;b&gt;não substitui&lt;/b&gt; a execução oficial da simulação
+ * (Etapa 4.7, feita por agentes JADE trocando mensagens de forma
+ * assíncrona e persistindo em PostgreSQL). Ela aplica a mesma equação a
+ * todos os agentes em paralelo lógico, ciclo a ciclo, o que é uma
+ * simplificação razoável para fins de visualização, dado que o modelo de
+ * Fan é uma média ponderada das influências recebidas.
+ */
+public final class SimuladorDireto {
+
+    private SimuladorDireto() {}
+
+    /**
+     * Executa a propagação por {@code config.getNumCiclos()} ciclos.
+     *
+     * @param rede             rede social já construída (sintética ou Twitter)
+     * @param config           configuração do cenário (alpha, delta, número de ciclos)
+     * @param estadosIniciais  estado emocional inicial por agente (id local -&gt; estado);
+     *                         agentes ausentes do mapa recebem {@link EmotionState#neutro()}
+     * @return histórico por ciclo; índice 0 é o estado inicial (ciclo 0)
+     */
+    public static List&lt;Map&lt;Integer, EmotionState&gt;&gt; executar(
+            RedeSocial rede,
+            SimulationConfiguration config,
+            Map&lt;Integer, EmotionState&gt; estadosIniciais) {
+
+<span class="fc" id="L49">        int n = rede.getNumAgentes();</span>
+<span class="fc" id="L50">        EmotionPropagationModel modelo = new FanEmotionModel(config.getAlpha(), config.getDelta());</span>
+
+<span class="fc" id="L52">        Map&lt;Integer, EmotionState&gt; atual = new HashMap&lt;&gt;();</span>
+<span class="fc bfc" id="L53" title="All 2 branches covered.">        for (int i = 0; i &lt; n; i++) {</span>
+<span class="pc bpc" id="L54" title="1 of 2 branches missed.">            EmotionState inicial = estadosIniciais == null ? null : estadosIniciais.get(i);</span>
+<span class="pc bpc" id="L55" title="1 of 2 branches missed.">            atual.put(i, inicial != null ? inicial : EmotionState.neutro());</span>
+        }
+
+<span class="fc" id="L58">        List&lt;Map&lt;Integer, EmotionState&gt;&gt; historico = new ArrayList&lt;&gt;();</span>
+<span class="fc" id="L59">        historico.add(Map.copyOf(atual));</span>
+
+<span class="fc bfc" id="L61" title="All 2 branches covered.">        for (int ciclo = 1; ciclo &lt;= config.getNumCiclos(); ciclo++) {</span>
+<span class="fc" id="L62">            Map&lt;Integer, EmotionState&gt; proximo = new HashMap&lt;&gt;();</span>
+<span class="fc bfc" id="L63" title="All 2 branches covered.">            for (int i = 0; i &lt; n; i++) {</span>
+<span class="fc" id="L64">                Map&lt;Integer, Double&gt; pesos = rede.getVizinhosComPesos(i);</span>
+<span class="fc bfc" id="L65" title="All 2 branches covered.">                if (pesos.isEmpty()) {</span>
+<span class="fc" id="L66">                    proximo.put(i, atual.get(i));</span>
+<span class="fc" id="L67">                    continue;</span>
+                }
+<span class="fc" id="L69">                Map&lt;Integer, EmotionState&gt; influencias = new HashMap&lt;&gt;();</span>
+<span class="fc bfc" id="L70" title="All 2 branches covered.">                for (int vizinho : pesos.keySet()) {</span>
+<span class="fc" id="L71">                    influencias.put(vizinho, atual.get(vizinho));</span>
+<span class="fc" id="L72">                }</span>
+<span class="fc" id="L73">                proximo.put(i, modelo.calcularProximoEstado(atual.get(i), influencias, pesos));</span>
+            }
+<span class="fc" id="L75">            atual = proximo;</span>
+<span class="fc" id="L76">            historico.add(Map.copyOf(atual));</span>
+        }
+<span class="fc" id="L78">        return historico;</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.11.202310140853</span></div></body></html>

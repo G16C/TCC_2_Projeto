@@ -1,0 +1,111 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="pt"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>AnaliseExport.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">PoC - Propagação de Emoções em Redes Sociais</a> &gt; <a href="index.source.html" class="el_package">br.unb.poc.analise</a> &gt; <span class="el_source">AnaliseExport.java</span></div><h1>AnaliseExport.java</h1><pre class="source lang-java linenums">package br.unb.poc.analise;
+
+import br.unb.poc.modelo.emocao.Emotion;
+
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+
+/**
+ * Serializa a lista de {@link AnaliseComparativa.Cenario} em um único
+ * documento JSON para consumo pelo dashboard de comparação.
+ *
+ * &lt;p&gt;Formato:
+ * &lt;pre&gt;
+ * { &quot;cenarios&quot;: [
+ *   { &quot;nome&quot;, &quot;estrutura&quot;: {numNos, numArestas, grauMedio, grauMaximo, grauMinimo,
+ *                            densidade, coeficienteAgrupamentoMedio, distanciaMediaAprox,
+ *                            numComponentesConexos, fracaoMaiorComponente},
+ *     &quot;propagacao&quot;: {cicloConvergencia,
+ *                     distribuicaoInicial: {rotulo: contagem, ...},
+ *                     distribuicaoFinal:   {rotulo: contagem, ...},
+ *                     serieMedia: [{ciclo, anger, disgust, joy, sadness}, ...]} },
+ *   ... ] }
+ * &lt;/pre&gt;
+ */
+public final class AnaliseExport {
+
+    private AnaliseExport() {}
+
+    public static String paraJson(List&lt;AnaliseComparativa.Cenario&gt; cenarios) {
+<span class="nc" id="L31">        StringBuilder json = new StringBuilder(8192);</span>
+<span class="nc" id="L32">        json.append(&quot;{\&quot;cenarios\&quot;:[&quot;);</span>
+<span class="nc bnc" id="L33" title="All 2 branches missed.">        for (int i = 0; i &lt; cenarios.size(); i++) {</span>
+<span class="nc bnc" id="L34" title="All 2 branches missed.">            if (i &gt; 0) json.append(',');</span>
+<span class="nc" id="L35">            escreverCenario(json, cenarios.get(i));</span>
+        }
+<span class="nc" id="L37">        json.append(&quot;]}&quot;);</span>
+<span class="nc" id="L38">        return json.toString();</span>
+    }
+
+    private static void escreverCenario(StringBuilder json, AnaliseComparativa.Cenario cenario) {
+<span class="nc" id="L42">        json.append(&quot;{\&quot;nome\&quot;:&quot;).append(str(cenario.nome()));</span>
+<span class="nc" id="L43">        escreverEstrutura(json, cenario.estrutura());</span>
+<span class="nc" id="L44">        escreverPropagacao(json, cenario.propagacao());</span>
+<span class="nc" id="L45">        json.append('}');</span>
+<span class="nc" id="L46">    }</span>
+
+    private static void escreverEstrutura(StringBuilder json, MetricasEstruturais e) {
+<span class="nc" id="L49">        json.append(&quot;,\&quot;estrutura\&quot;:{&quot;)</span>
+<span class="nc" id="L50">            .append(&quot;\&quot;numNos\&quot;:&quot;).append(e.numNos())</span>
+<span class="nc" id="L51">            .append(&quot;,\&quot;numArestas\&quot;:&quot;).append(e.numArestas())</span>
+<span class="nc" id="L52">            .append(&quot;,\&quot;grauMedio\&quot;:&quot;).append(num(e.grauMedio()))</span>
+<span class="nc" id="L53">            .append(&quot;,\&quot;grauMaximo\&quot;:&quot;).append(e.grauMaximo())</span>
+<span class="nc" id="L54">            .append(&quot;,\&quot;grauMinimo\&quot;:&quot;).append(e.grauMinimo())</span>
+<span class="nc" id="L55">            .append(&quot;,\&quot;densidade\&quot;:&quot;).append(num(e.densidade()))</span>
+<span class="nc" id="L56">            .append(&quot;,\&quot;coeficienteAgrupamentoMedio\&quot;:&quot;).append(num(e.coeficienteAgrupamentoMedio()))</span>
+<span class="nc" id="L57">            .append(&quot;,\&quot;distanciaMediaAprox\&quot;:&quot;).append(num(e.distanciaMediaAprox()))</span>
+<span class="nc" id="L58">            .append(&quot;,\&quot;numComponentesConexos\&quot;:&quot;).append(e.numComponentesConexos())</span>
+<span class="nc" id="L59">            .append(&quot;,\&quot;fracaoMaiorComponente\&quot;:&quot;).append(num(e.fracaoMaiorComponente()))</span>
+<span class="nc" id="L60">            .append('}');</span>
+<span class="nc" id="L61">    }</span>
+
+    private static void escreverPropagacao(StringBuilder json, MetricasPropagacao p) {
+<span class="nc" id="L64">        json.append(&quot;,\&quot;propagacao\&quot;:{&quot;)</span>
+<span class="nc" id="L65">            .append(&quot;\&quot;cicloConvergencia\&quot;:&quot;).append(p.cicloConvergencia())</span>
+<span class="nc" id="L66">            .append(&quot;,\&quot;distribuicaoInicial\&quot;:&quot;);</span>
+<span class="nc" id="L67">        escreverContagem(json, p.distribuicaoInicial());</span>
+<span class="nc" id="L68">        json.append(&quot;,\&quot;distribuicaoFinal\&quot;:&quot;);</span>
+<span class="nc" id="L69">        escreverContagem(json, p.distribuicaoFinal());</span>
+<span class="nc" id="L70">        json.append(&quot;,\&quot;serieMedia\&quot;:[&quot;);</span>
+<span class="nc" id="L71">        List&lt;Map&lt;Emotion, Double&gt;&gt; serie = p.serieMediaPorCiclo();</span>
+<span class="nc bnc" id="L72" title="All 2 branches missed.">        for (int c = 0; c &lt; serie.size(); c++) {</span>
+<span class="nc bnc" id="L73" title="All 2 branches missed.">            if (c &gt; 0) json.append(',');</span>
+<span class="nc" id="L74">            Map&lt;Emotion, Double&gt; media = serie.get(c);</span>
+<span class="nc" id="L75">            json.append(&quot;{\&quot;ciclo\&quot;:&quot;).append(c)</span>
+<span class="nc" id="L76">                .append(&quot;,\&quot;anger\&quot;:&quot;).append(num(media.get(Emotion.ANGER)))</span>
+<span class="nc" id="L77">                .append(&quot;,\&quot;disgust\&quot;:&quot;).append(num(media.get(Emotion.DISGUST)))</span>
+<span class="nc" id="L78">                .append(&quot;,\&quot;joy\&quot;:&quot;).append(num(media.get(Emotion.JOY)))</span>
+<span class="nc" id="L79">                .append(&quot;,\&quot;sadness\&quot;:&quot;).append(num(media.get(Emotion.SADNESS)))</span>
+<span class="nc" id="L80">                .append('}');</span>
+        }
+<span class="nc" id="L82">        json.append(&quot;]}&quot;);</span>
+<span class="nc" id="L83">    }</span>
+
+    private static void escreverContagem(StringBuilder json, Map&lt;String, Integer&gt; contagem) {
+<span class="nc" id="L86">        json.append('{');</span>
+<span class="nc" id="L87">        boolean primeiro = true;</span>
+<span class="nc bnc" id="L88" title="All 2 branches missed.">        for (Map.Entry&lt;String, Integer&gt; entrada : contagem.entrySet()) {</span>
+<span class="nc bnc" id="L89" title="All 2 branches missed.">            if (!primeiro) json.append(',');</span>
+<span class="nc" id="L90">            primeiro = false;</span>
+<span class="nc" id="L91">            json.append(str(entrada.getKey())).append(':').append(entrada.getValue());</span>
+<span class="nc" id="L92">        }</span>
+<span class="nc" id="L93">        json.append('}');</span>
+<span class="nc" id="L94">    }</span>
+
+    private static String str(String valor) {
+<span class="nc" id="L97">        StringBuilder sb = new StringBuilder(&quot;\&quot;&quot;);</span>
+<span class="nc bnc" id="L98" title="All 2 branches missed.">        for (int i = 0; i &lt; valor.length(); i++) {</span>
+<span class="nc" id="L99">            char c = valor.charAt(i);</span>
+<span class="nc bnc" id="L100" title="All 4 branches missed.">            if (c == '&quot;' || c == '\\') sb.append('\\');</span>
+<span class="nc" id="L101">            sb.append(c);</span>
+        }
+<span class="nc" id="L103">        return sb.append('&quot;').toString();</span>
+    }
+
+    private static String num(double valor) {
+<span class="nc bnc" id="L107" title="All 4 branches missed.">        if (Double.isNaN(valor) || Double.isInfinite(valor)) return &quot;0&quot;;</span>
+<span class="nc" id="L108">        return String.format(Locale.US, &quot;%.6f&quot;, valor);</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.11.202310140853</span></div></body></html>

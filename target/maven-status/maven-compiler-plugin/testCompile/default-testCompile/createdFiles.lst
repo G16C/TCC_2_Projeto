@@ -1,0 +1,9 @@
+br/unb/poc/analise/SementesComparaveisTest.class
+br/unb/poc/PocTest.class
+br/unb/poc/analise/MetricasPropagacaoTest.class
+br/unb/poc/relatorio/SimuladorDiretoTest.class
+br/unb/poc/relatorio/RelatorioExportTest.class
+br/unb/poc/modelo/emocao/HeuristicaTwitterTest.class
+br/unb/poc/analise/MetricasEstruturaisTest.class
+br/unb/poc/modelo/emocao/EmotionStateNeutroTest.class
+br/unb/poc/TwitterDatasetLoaderTest.class

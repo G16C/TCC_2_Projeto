@@ -1,0 +1,299 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="pt"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>TwitterDatasetLoader.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">PoC - Propagação de Emoções em Redes Sociais</a> &gt; <a href="index.source.html" class="el_package">br.unb.poc.dados</a> &gt; <span class="el_source">TwitterDatasetLoader.java</span></div><h1>TwitterDatasetLoader.java</h1><pre class="source lang-java linenums">package br.unb.poc.dados;
+
+import java.io.*;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.*;
+import java.util.*;
+import java.util.zip.GZIPInputStream;
+
+/**
+ * Carrega uma rede do conjunto Twitter Social Circles.
+ *
+ * &lt;p&gt;O conjunto é organizado em grupos de arquivos com o mesmo identificador
+ * de ego: .edges, .feat, .featnames, .egofeat e .circles.
+ *
+ * &lt;p&gt;Esta implementação aceita tanto a pasta extraída quanto o arquivo
+ * .tar.gz original, sem exigir uma biblioteca externa para leitura de TAR.
+ *
+ * &lt;p&gt;Importante: o conjunto fornece estrutura de rede e atributos binários,
+ * mas não fornece diretamente rótulos emocionais das postagens. Portanto,
+ * esta classe não atribui emoções aos usuários. A extração/calibração
+ * emocional será uma etapa posterior.
+ */
+public final class TwitterDatasetLoader {
+
+    private TwitterDatasetLoader() {}
+
+    public static TwitterNetworkData load(Path fonte, String egoId, double pesoConexao)
+            throws IOException {
+
+<span class="pc bpc" id="L30" title="1 of 2 branches missed.">        if (Files.isDirectory(fonte)) {</span>
+<span class="fc" id="L31">            return loadFromDirectory(fonte, egoId, pesoConexao);</span>
+        }
+
+<span class="nc" id="L34">        String nome = fonte.getFileName().toString().toLowerCase(Locale.ROOT);</span>
+<span class="nc bnc" id="L35" title="All 4 branches missed.">        if (nome.endsWith(&quot;.tar.gz&quot;) || nome.endsWith(&quot;.tgz&quot;)) {</span>
+<span class="nc" id="L36">            return loadFromTarGz(fonte, egoId, pesoConexao);</span>
+        }
+
+<span class="nc" id="L39">        throw new IOException(&quot;Fonte Twitter deve ser uma pasta extraída ou um arquivo .tar.gz: &quot; + fonte);</span>
+    }
+
+    private static TwitterNetworkData loadFromDirectory(
+            Path diretorio, String egoId, double pesoConexao) throws IOException {
+
+<span class="fc" id="L45">        Path raiz = diretorio.resolve(&quot;twitter&quot;);</span>
+<span class="pc bpc" id="L46" title="1 of 2 branches missed.">        if (!Files.isDirectory(raiz)) {</span>
+<span class="nc" id="L47">            raiz = diretorio;</span>
+        }
+
+<span class="fc" id="L50">        Path edges = raiz.resolve(egoId + &quot;.edges&quot;);</span>
+<span class="fc" id="L51">        Path feat = raiz.resolve(egoId + &quot;.feat&quot;);</span>
+<span class="fc" id="L52">        Path featnames = raiz.resolve(egoId + &quot;.featnames&quot;);</span>
+<span class="fc" id="L53">        Path egofeat = raiz.resolve(egoId + &quot;.egofeat&quot;);</span>
+
+<span class="pc bpc" id="L55" title="1 of 2 branches missed.">        if (!Files.exists(edges)) {</span>
+<span class="nc" id="L56">            throw new FileNotFoundException(&quot;Arquivo de arestas não encontrado: &quot; + edges);</span>
+        }
+
+<span class="fc" id="L59">        List&lt;String&gt; edgeLines = Files.readAllLines(edges, StandardCharsets.UTF_8);</span>
+<span class="pc bpc" id="L60" title="1 of 2 branches missed.">        List&lt;String&gt; featLines = Files.exists(feat)</span>
+<span class="fc" id="L61">                ? Files.readAllLines(feat, StandardCharsets.UTF_8)</span>
+<span class="pc" id="L62">                : List.of();</span>
+<span class="pc bpc" id="L63" title="1 of 2 branches missed.">        List&lt;String&gt; featnameLines = Files.exists(featnames)</span>
+<span class="fc" id="L64">                ? Files.readAllLines(featnames, StandardCharsets.UTF_8)</span>
+<span class="pc" id="L65">                : List.of();</span>
+<span class="pc bpc" id="L66" title="1 of 2 branches missed.">        List&lt;String&gt; egoFeatureLines = Files.exists(egofeat)</span>
+<span class="fc" id="L67">                ? Files.readAllLines(egofeat, StandardCharsets.UTF_8)</span>
+<span class="pc" id="L68">                : List.of();</span>
+
+<span class="fc" id="L70">        return build(egoId, edgeLines, featLines, featnameLines, egoFeatureLines, pesoConexao);</span>
+    }
+
+    private static TwitterNetworkData loadFromTarGz(
+            Path arquivo, String egoId, double pesoConexao) throws IOException {
+
+<span class="nc" id="L76">        String prefixo = &quot;twitter/&quot; + egoId + &quot;.&quot;;</span>
+<span class="nc" id="L77">        String edges = null;</span>
+<span class="nc" id="L78">        String feat = null;</span>
+<span class="nc" id="L79">        String featnames = null;</span>
+<span class="nc" id="L80">        String egofeat = null;</span>
+
+<span class="nc" id="L82">        try (InputStream fis = Files.newInputStream(arquivo);</span>
+<span class="nc" id="L83">             GZIPInputStream gzip = new GZIPInputStream(fis)) {</span>
+
+<span class="nc" id="L85">            byte[] header = new byte[512];</span>
+
+            while (true) {
+<span class="nc" id="L88">                int lidos = readFully(gzip, header);</span>
+<span class="nc bnc" id="L89" title="All 2 branches missed.">                if (lidos == 0) break;</span>
+<span class="nc bnc" id="L90" title="All 2 branches missed.">                if (lidos != 512) throw new IOException(&quot;Entrada TAR truncada.&quot;);</span>
+
+<span class="nc" id="L92">                boolean vazio = true;</span>
+<span class="nc bnc" id="L93" title="All 2 branches missed.">                for (byte b : header) {</span>
+<span class="nc bnc" id="L94" title="All 2 branches missed.">                    if (b != 0) {</span>
+<span class="nc" id="L95">                        vazio = false;</span>
+<span class="nc" id="L96">                        break;</span>
+                    }
+                }
+<span class="nc bnc" id="L99" title="All 2 branches missed.">                if (vazio) break;</span>
+
+<span class="nc" id="L101">                String nome = ascii(header, 0, 100);</span>
+<span class="nc" id="L102">                long tamanho = parseOctal(header, 124, 12);</span>
+<span class="nc" id="L103">                byte tipo = header[156];</span>
+
+<span class="nc" id="L105">                ByteArrayOutputStream conteudo = new ByteArrayOutputStream();</span>
+<span class="nc bnc" id="L106" title="All 4 branches missed.">                if (tipo == 0 || tipo == '0') {</span>
+<span class="nc" id="L107">                    copyExactly(gzip, conteudo, tamanho);</span>
+                } else {
+<span class="nc" id="L109">                    skipExactly(gzip, tamanho);</span>
+                }
+
+<span class="nc" id="L112">                long padding = (512 - (tamanho % 512)) % 512;</span>
+<span class="nc" id="L113">                skipExactly(gzip, padding);</span>
+
+<span class="nc bnc" id="L115" title="All 2 branches missed.">                if (nome.equals(prefixo + &quot;edges&quot;)) edges = conteudo.toString(StandardCharsets.UTF_8);</span>
+<span class="nc bnc" id="L116" title="All 2 branches missed.">                else if (nome.equals(prefixo + &quot;feat&quot;)) feat = conteudo.toString(StandardCharsets.UTF_8);</span>
+<span class="nc bnc" id="L117" title="All 2 branches missed.">                else if (nome.equals(prefixo + &quot;featnames&quot;)) featnames = conteudo.toString(StandardCharsets.UTF_8);</span>
+<span class="nc bnc" id="L118" title="All 2 branches missed.">                else if (nome.equals(prefixo + &quot;egofeat&quot;)) egofeat = conteudo.toString(StandardCharsets.UTF_8);</span>
+<span class="nc" id="L119">            }</span>
+        }
+
+<span class="nc bnc" id="L122" title="All 2 branches missed.">        if (edges == null) {</span>
+<span class="nc" id="L123">            throw new FileNotFoundException(</span>
+                    &quot;Ego '&quot; + egoId + &quot;' não encontrado no dataset Twitter: &quot; + arquivo);
+        }
+
+<span class="nc" id="L127">        return build(</span>
+                egoId,
+<span class="nc" id="L129">                lines(edges),</span>
+<span class="nc" id="L130">                lines(feat),</span>
+<span class="nc" id="L131">                lines(featnames),</span>
+<span class="nc" id="L132">                lines(egofeat),</span>
+                pesoConexao);
+    }
+
+    private static TwitterNetworkData build(
+            String egoId,
+            List&lt;String&gt; edgeLines,
+            List&lt;String&gt; featLines,
+            List&lt;String&gt; featnameLines,
+            List&lt;String&gt; egoFeatureLines,
+            double pesoConexao) {
+
+<span class="fc" id="L144">        TreeSet&lt;String&gt; ids = new TreeSet&lt;&gt;();</span>
+
+<span class="fc bfc" id="L146" title="All 2 branches covered.">        for (String linha : edgeLines) {</span>
+<span class="fc" id="L147">            String[] p = tokens(linha);</span>
+<span class="pc bpc" id="L148" title="1 of 2 branches missed.">            if (p.length &gt;= 2) {</span>
+<span class="fc" id="L149">                ids.add(p[0]);</span>
+<span class="fc" id="L150">                ids.add(p[1]);</span>
+            }
+<span class="fc" id="L152">        }</span>
+
+<span class="fc" id="L154">        Map&lt;String, int[]&gt; features = new HashMap&lt;&gt;();</span>
+<span class="fc bfc" id="L155" title="All 2 branches covered.">        for (String linha : featLines) {</span>
+<span class="fc" id="L156">            String[] p = tokens(linha);</span>
+<span class="pc bpc" id="L157" title="1 of 2 branches missed.">            if (p.length &lt; 1) continue;</span>
+
+<span class="fc" id="L159">            int[] vetor = new int[p.length - 1];</span>
+<span class="fc bfc" id="L160" title="All 2 branches covered.">            for (int i = 1; i &lt; p.length; i++) {</span>
+<span class="fc" id="L161">                vetor[i - 1] = Integer.parseInt(p[i]);</span>
+            }
+<span class="fc" id="L163">            features.put(p[0], vetor);</span>
+<span class="fc" id="L164">            ids.add(p[0]);</span>
+<span class="fc" id="L165">        }</span>
+
+<span class="fc" id="L167">        List&lt;String&gt; nomesFeatures = new ArrayList&lt;&gt;();</span>
+<span class="fc bfc" id="L168" title="All 2 branches covered.">        for (String linha : featnameLines) {</span>
+<span class="fc" id="L169">            String[] p = tokensPreserveFeatureName(linha);</span>
+<span class="pc bpc" id="L170" title="1 of 2 branches missed.">            if (p.length &gt;= 2) {</span>
+<span class="fc" id="L171">                nomesFeatures.add(p[1]);</span>
+            }
+<span class="fc" id="L173">        }</span>
+
+<span class="fc" id="L175">        int[] featuresEgo = parseVector(egoFeatureLines);</span>
+
+<span class="fc" id="L177">        List&lt;String&gt; idsExternos = new ArrayList&lt;&gt;(ids);</span>
+<span class="fc" id="L178">        Map&lt;String, Integer&gt; local = new HashMap&lt;&gt;();</span>
+<span class="fc bfc" id="L179" title="All 2 branches covered.">        for (int i = 0; i &lt; idsExternos.size(); i++) {</span>
+<span class="fc" id="L180">            local.put(idsExternos.get(i), i);</span>
+        }
+
+<span class="fc" id="L183">        List&lt;Map&lt;Integer, Double&gt;&gt; adj = new ArrayList&lt;&gt;();</span>
+<span class="fc bfc" id="L184" title="All 2 branches covered.">        for (int i = 0; i &lt; idsExternos.size(); i++) {</span>
+<span class="fc" id="L185">            adj.add(new HashMap&lt;&gt;());</span>
+        }
+
+<span class="fc bfc" id="L188" title="All 2 branches covered.">        for (String linha : edgeLines) {</span>
+<span class="fc" id="L189">            String[] p = tokens(linha);</span>
+<span class="pc bpc" id="L190" title="1 of 2 branches missed.">            if (p.length &lt; 2) continue;</span>
+
+<span class="fc" id="L192">            Integer a = local.get(p[0]);</span>
+<span class="fc" id="L193">            Integer b = local.get(p[1]);</span>
+
+<span class="pc bpc" id="L195" title="3 of 6 branches missed.">            if (a == null || b == null || a.equals(b)) continue;</span>
+
+            // O arquivo .edges representa relações não direcionadas.
+<span class="fc" id="L198">            adj.get(a).put(b, pesoConexao);</span>
+<span class="fc" id="L199">            adj.get(b).put(a, pesoConexao);</span>
+<span class="fc" id="L200">        }</span>
+
+<span class="fc" id="L202">        return new TwitterNetworkData(</span>
+                egoId,
+                idsExternos,
+                adj,
+                features,
+                nomesFeatures,
+                featuresEgo);
+    }
+
+    private static String[] tokens(String linha) {
+<span class="pc bpc" id="L212" title="1 of 2 branches missed.">        if (linha == null) return new String[0];</span>
+<span class="fc" id="L213">        linha = linha.trim();</span>
+<span class="pc bpc" id="L214" title="1 of 2 branches missed.">        return linha.isEmpty() ? new String[0] : linha.split(&quot;\\s+&quot;);</span>
+    }
+
+    private static String[] tokensPreserveFeatureName(String linha) {
+<span class="pc bpc" id="L218" title="1 of 2 branches missed.">        if (linha == null) return new String[0];</span>
+<span class="fc" id="L219">        String trimmed = linha.trim();</span>
+<span class="pc bpc" id="L220" title="1 of 2 branches missed.">        if (trimmed.isEmpty()) return new String[0];</span>
+<span class="fc" id="L221">        int pos = trimmed.indexOf(' ');</span>
+<span class="pc bpc" id="L222" title="1 of 2 branches missed.">        if (pos &lt; 0) return new String[] { trimmed };</span>
+<span class="fc" id="L223">        return new String[] {</span>
+<span class="fc" id="L224">                trimmed.substring(0, pos),</span>
+<span class="fc" id="L225">                trimmed.substring(pos + 1)</span>
+        };
+    }
+
+    private static int[] parseVector(List&lt;String&gt; linhas) {
+<span class="pc bpc" id="L230" title="1 of 2 branches missed.">        for (String linha : linhas) {</span>
+<span class="fc" id="L231">            String[] p = tokens(linha);</span>
+<span class="fc" id="L232">            int[] vetor = new int[p.length];</span>
+<span class="fc bfc" id="L233" title="All 2 branches covered.">            for (int i = 0; i &lt; p.length; i++) {</span>
+<span class="fc" id="L234">                vetor[i] = Integer.parseInt(p[i]);</span>
+            }
+<span class="fc" id="L236">            return vetor;</span>
+        }
+<span class="nc" id="L238">        return new int[0];</span>
+    }
+
+    private static List&lt;String&gt; lines(String texto) {
+<span class="nc bnc" id="L242" title="All 4 branches missed.">        if (texto == null || texto.isEmpty()) return List.of();</span>
+<span class="nc" id="L243">        return Arrays.asList(texto.split(&quot;\\R&quot;));</span>
+    }
+
+    private static String ascii(byte[] b, int off, int len) {
+<span class="nc" id="L247">        int fim = off;</span>
+<span class="nc bnc" id="L248" title="All 4 branches missed.">        while (fim &lt; off + len &amp;&amp; b[fim] != 0) fim++;</span>
+<span class="nc" id="L249">        return new String(b, off, fim - off, StandardCharsets.US_ASCII);</span>
+    }
+
+    private static long parseOctal(byte[] b, int off, int len) {
+<span class="nc" id="L253">        long valor = 0;</span>
+<span class="nc" id="L254">        int i = off;</span>
+<span class="nc" id="L255">        int fim = off + len;</span>
+<span class="nc bnc" id="L256" title="All 6 branches missed.">        while (i &lt; fim &amp;&amp; (b[i] == 0 || b[i] == ' ')) i++;</span>
+<span class="nc bnc" id="L257" title="All 6 branches missed.">        while (i &lt; fim &amp;&amp; b[i] &gt;= '0' &amp;&amp; b[i] &lt;= '7') {</span>
+<span class="nc" id="L258">            valor = (valor &lt;&lt; 3) + (b[i] - '0');</span>
+<span class="nc" id="L259">            i++;</span>
+        }
+<span class="nc" id="L261">        return valor;</span>
+    }
+
+    private static int readFully(InputStream in, byte[] buffer) throws IOException {
+<span class="nc" id="L265">        int total = 0;</span>
+<span class="nc bnc" id="L266" title="All 2 branches missed.">        while (total &lt; buffer.length) {</span>
+<span class="nc" id="L267">            int n = in.read(buffer, total, buffer.length - total);</span>
+<span class="nc bnc" id="L268" title="All 2 branches missed.">            if (n &lt; 0) break;</span>
+<span class="nc" id="L269">            total += n;</span>
+<span class="nc" id="L270">        }</span>
+<span class="nc" id="L271">        return total;</span>
+    }
+
+    private static void copyExactly(InputStream in, OutputStream out, long tamanho)
+            throws IOException {
+<span class="nc" id="L276">        byte[] buffer = new byte[8192];</span>
+<span class="nc" id="L277">        long restante = tamanho;</span>
+<span class="nc bnc" id="L278" title="All 2 branches missed.">        while (restante &gt; 0) {</span>
+<span class="nc" id="L279">            int n = in.read(buffer, 0, (int) Math.min(buffer.length, restante));</span>
+<span class="nc bnc" id="L280" title="All 2 branches missed.">            if (n &lt; 0) throw new EOFException(&quot;Entrada TAR truncada.&quot;);</span>
+<span class="nc" id="L281">            out.write(buffer, 0, n);</span>
+<span class="nc" id="L282">            restante -= n;</span>
+<span class="nc" id="L283">        }</span>
+<span class="nc" id="L284">    }</span>
+
+    private static void skipExactly(InputStream in, long tamanho) throws IOException {
+<span class="nc" id="L287">        long restante = tamanho;</span>
+<span class="nc bnc" id="L288" title="All 2 branches missed.">        while (restante &gt; 0) {</span>
+<span class="nc" id="L289">            long n = in.skip(restante);</span>
+<span class="nc bnc" id="L290" title="All 2 branches missed.">            if (n &gt; 0) {</span>
+<span class="nc" id="L291">                restante -= n;</span>
+<span class="nc" id="L292">                continue;</span>
+            }
+<span class="nc bnc" id="L294" title="All 2 branches missed.">            if (in.read() &lt; 0) throw new EOFException(&quot;Entrada TAR truncada.&quot;);</span>
+<span class="nc" id="L295">            restante--;</span>
+<span class="nc" id="L296">        }</span>
+<span class="nc" id="L297">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.11.202310140853</span></div></body></html>
