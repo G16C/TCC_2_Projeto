@@ -1,19 +1,19 @@
+
 name: CI
 
-# Observabilidade de testes: roda a suíte JUnit automaticamente a cada push
-# e pull request, e publica o relatório de cobertura (JaCoCo) e o relatório
-# de testes (Surefire) como artefatos do workflow, para inspeção sem
-# precisar rodar nada localmente.
+# Executa os testes automaticamente a cada push e pull request.
+# Publica os relatórios de testes e cobertura como artefatos.
 on:
   push:
-    branches: [ main, master ]
+    branches: [main, master]
   pull_request:
-    branches: [ main, master ]
-  workflow_dispatch: {}
+    branches: [main, master]
+  workflow_dispatch:
 
 jobs:
   test:
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout do código
         uses: actions/checkout@v4
@@ -24,21 +24,19 @@ jobs:
           distribution: temurin
           java-version: '17'
           cache: maven
-      - name: Install JADE dependency
+
+      - name: Instalar dependência JADE
         run: >
-        mvn --batch-mode --no-transfer-progress
-        org.apache.maven.plugins:maven-install-plugin:3.1.2:install-file
-        -Dfile=lib/jade.jar
-        -DgroupId=com.tilab.jade
-        -DartifactId=jade
-        -Dversion=4.6.0
-        -Dpackaging=jar
-        -DgeneratePom=true
+          mvn --batch-mode --no-transfer-progress
+          org.apache.maven.plugins:maven-install-plugin:3.1.2:install-file
+          -Dfile=lib/jade.jar
+          -DgroupId=com.tilab.jade
+          -DartifactId=jade
+          -Dversion=4.6.0
+          -Dpackaging=jar
+          -DgeneratePom=true
+
       - name: Compilar e rodar os testes (com cobertura)
-        # Os testes atuais são todos independentes de PostgreSQL/JADE em
-        # execução (usam apenas RedeSocial/EmotionState/SimuladorDireto/
-        # HeuristicaTwitter/TwitterDatasetLoader em memória), então não é
-        # necessário subir um serviço de banco aqui.
         run: mvn --batch-mode --no-transfer-progress verify
 
       - name: Publicar relatório de testes (Surefire)
@@ -47,6 +45,7 @@ jobs:
         with:
           name: relatorio-testes
           path: target/surefire-reports/
+          if-no-files-found: ignore
 
       - name: Publicar relatório de cobertura (JaCoCo)
         if: always()
@@ -54,3 +53,4 @@ jobs:
         with:
           name: relatorio-cobertura
           path: target/site/jacoco/
+          if-no-files-found: ignore
