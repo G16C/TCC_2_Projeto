@@ -24,7 +24,16 @@ jobs:
           distribution: temurin
           java-version: '17'
           cache: maven
-
+      - name: Install JADE dependency
+        run: >
+        mvn --batch-mode --no-transfer-progress
+        org.apache.maven.plugins:maven-install-plugin:3.1.2:install-file
+        -Dfile=lib/jade.jar
+        -DgroupId=com.tilab.jade
+        -DartifactId=jade
+        -Dversion=4.6.0
+        -Dpackaging=jar
+        -DgeneratePom=true
       - name: Compilar e rodar os testes (com cobertura)
         # Os testes atuais são todos independentes de PostgreSQL/JADE em
         # execução (usam apenas RedeSocial/EmotionState/SimuladorDireto/
