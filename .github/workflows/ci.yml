@@ -41,16 +41,20 @@ jobs:
 
       - name: Publicar relatório de testes (Surefire)
         if: always()
+        continue-on-error: true
         uses: actions/upload-artifact@v4
         with:
           name: relatorio-testes
           path: target/surefire-reports/
           if-no-files-found: ignore
+          retention-days: 3
 
       - name: Publicar relatório de cobertura (JaCoCo)
         if: always()
+        continue-on-error: true
         uses: actions/upload-artifact@v4
         with:
           name: relatorio-cobertura
           path: target/site/jacoco/
           if-no-files-found: ignore
+          retention-days: 3
