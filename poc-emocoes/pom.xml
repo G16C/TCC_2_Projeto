@@ -1,0 +1,155 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0
+         http://maven.apache.org/xsd/maven-4.0.0.xsd">
+
+    <modelVersion>4.0.0</modelVersion>
+    <groupId>br.unb</groupId>
+    <artifactId>poc-emocoes</artifactId>
+    <version>1.0.0</version>
+    <packaging>jar</packaging>
+
+    <name>PoC - Propagação de Emoções em Redes Sociais</name>
+    <description>
+        Prova de Conceito para simulação de propagação emocional
+        em redes sociais digitais utilizando JADE.
+        TCC - Engenharia de Software, UnB, 2026.
+        Autor: Gabriel Campello Marques
+    </description>
+
+    <properties>
+        <maven.compiler.source>17</maven.compiler.source>
+        <maven.compiler.target>17</maven.compiler.target>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <!-- Valor padrão de "mvn exec:java"; sobrescrevível via
+             -Dexec.mainClass=... na linha de comando (ver seção exec-maven-plugin). -->
+        <exec.mainClass>br.unb.poc.plataforma.LancadorSimulacao</exec.mainClass>
+    </properties>
+
+    <dependencies>
+        <!-- JADE via sistema local (lib/jade.jar) -->
+        <dependency>
+            <groupId>com.tilab.jade</groupId>
+            <artifactId>jade</artifactId>
+            <version>4.6.0</version>
+        </dependency>
+
+        <!-- Removed duplicate remote jade:4.5.0 dependency (missing artifact); using local lib/jade.jar (4.6.0) -->
+        <!-- PostgreSQL JDBC Driver -->
+        <dependency>
+            <groupId>org.postgresql</groupId>
+            <artifactId>postgresql</artifactId>
+            <version>42.7.3</version>
+        </dependency>
+
+        <!-- JUnit 5 -->
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <version>5.10.0</version>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <!--
+                    JADE não é publicado no Maven Central — por isso o projeto
+                    inclui lib/jade.jar localmente. Sem este plugin, `mvn
+                    compile`/`test`/etc. só funcionam em uma máquina onde
+                    alguém já rodou `mvn install:install-file` manualmente
+                    para esse jar (o que não é o caso de um runner de CI
+                    "limpo", por exemplo). Este plugin instala lib/jade.jar
+                    no repositório local automaticamente, bem no início de
+                    qualquer build (fase "validate"), tornando a dependência
+                    declarada abaixo resolúvel em qualquer ambiente, sem
+                    nenhum passo manual.
+                -->
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-install-plugin</artifactId>
+                <version>3.1.2</version>
+                <executions>
+                    <execution>
+                        <id>install-jade-local</id>
+                        <phase>validate</phase>
+                        <goals>
+                            <goal>install-file</goal>
+                        </goals>
+                        <configuration>
+                            <file>${project.basedir}/lib/jade.jar</file>
+                            <groupId>com.tilab.jade</groupId>
+                            <artifactId>jade</artifactId>
+                            <version>4.6.0</version>
+                            <packaging>jar</packaging>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <version>3.11.0</version>
+            </plugin>
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>exec-maven-plugin</artifactId>
+                <version>3.1.0</version>
+                <configuration>
+                    <includeProjectDependencies>true</includeProjectDependencies>
+                    <classpathScope>runtime</classpathScope>
+                    <!-- Referencia a propriedade (não um valor fixo) para que
+                         -Dexec.mainClass=... na linha de comando funcione. -->
+                    <mainClass>${exec.mainClass}</mainClass>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-jar-plugin</artifactId>
+                <version>3.3.0</version>
+                <configuration>
+                    <archive>
+                        <manifest>
+                            <mainClass>br.unb.poc.plataforma.LancadorSimulacao</mainClass>
+                        </manifest>
+                    </archive>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <version>3.1.2</version>
+            </plugin>
+            <plugin>
+                <!--
+                    Cobertura de testes ("observabilidade de testes"): gera um
+                    relatório HTML em target/site/jacoco/index.html após
+                    `mvn test jacoco:report`, mostrando linha a linha quais
+                    classes/métodos estão (ou não) cobertos pelos testes
+                    automatizados. Também roda automaticamente em `mvn verify`
+                    via os goals `prepare-agent`/`report` amarrados ao ciclo
+                    de build padrão.
+                -->
+                <groupId>org.jacoco</groupId>
+                <artifactId>jacoco-maven-plugin</artifactId>
+                <version>0.8.11</version>
+                <executions>
+                    <execution>
+                        <id>jacoco-prepare-agent</id>
+                        <goals>
+                            <goal>prepare-agent</goal>
+                        </goals>
+                    </execution>
+                    <execution>
+                        <id>jacoco-report</id>
+                        <phase>test</phase>
+                        <goals>
+                            <goal>report</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
+</project>
