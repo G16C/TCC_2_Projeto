@@ -176,10 +176,6 @@ Adicionado o pacote `br.unb.poc.relatorio`, responsável por converter a topolog
 - `ColetorResultados`: coletor em memória, thread-safe, plugado em `UsuarioAgent.persistirEstado` e `AgenteControle.setup` de forma aditiva (nunca lança exceção, nunca altera o comportamento existente). Existe porque o esquema atual do PostgreSQL (`simulacao`/`estado_emocional`) não armazena a topologia da rede — apenas o estado por ciclo — então reconstruir o grafo a partir de uma consulta posterior ao banco não é possível sem essa camada;
 - `SimuladorDireto`: execução síncrona de referência do mesmo `FanEmotionModel`, útil para alimentar a interface sem depender da plataforma JADE nem do banco (por exemplo, em ambientes de desenvolvimento sem essa infraestrutura disponível).
 
-### Observação metodológica
-
-Ao inspecionar `AgenteControle.criarAgentesUsuario`, foi identificado que, quando a fonte de dados é o Twitter, o estado emocional inicial de **todos** os agentes — inclusive o nó-semente escolhido por `twitterSeedNodeId` — é substituído integralmente pela inferência da heurística (Etapa 4.5). Os parâmetros `estadoInicialSemente`/`estadoInicialPadrao` continuam vigentes apenas na topologia sintética. Esse comportamento foi preservado nesta etapa (inclusive no modo de demonstração da interface) por não caracterizar um defeito óbvio — pode ser uma decisão deliberada de dar prioridade aos dados observados sobre a semente configurada manualmente — mas fica registrado como ponto a validar com o orientador antes da calibração final.
-
 ## Etapa 5.0 — Interface gráfica
 
 Adicionados os pacotes `br.unb.poc.interfaces` e `br.unb.poc.demo`:
