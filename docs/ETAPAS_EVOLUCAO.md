@@ -195,8 +195,6 @@ O servidor foi executado localmente e testado via requisições HTTP diretas:
 
 Também foi validado `LancadorInterface --twitter <caminho> <egoId> [seedNodeId]`, o mesmo caminho de código usado com o dataset real (apenas trocando o gerador sintético pelo `TwitterDatasetLoader` real): com um dataset de 5 nós contendo hashtags `#happy`/`#angry`/`#sad`, a inferência da Etapa 4.5 e a propagação retornaram exatamente os estados esperados (nó com `#happy` → alegria 0,70; nó com `#angry` → raiva 0,70; nó com ambas as features → empate resolvido pela ordem do enum; nós com `#sad` → tristeza 0,70), confirmando a cadeia completa dado real → inferência → propagação → JSON → interface.
 
-Essa validação cobre a cadeia completa dado → propagação → JSON → interface, mas não substitui a execução real via JADE/PostgreSQL (Etapas 4.6–4.8), que depende de infraestrutura (banco de dados, ambiente com display para a GUI do JADE) não disponível neste ambiente de verificação.
-
 ### Como visualizar o resultado de uma execução real
 
 Como `ColetorResultados` já é alimentado por `UsuarioAgent` durante uma execução real via `LancadorSimulacao`, é possível montar o mesmo relatório a partir de uma simulação JADE em andamento:
