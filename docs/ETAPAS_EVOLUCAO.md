@@ -1,4 +1,4 @@
-# Evolução da PoC para o TCC II
+# Evolução da PoC para o Produto Final
 
 ## Etapa 1 — Refatoração do núcleo
 
@@ -79,6 +79,7 @@ Próxima etapa proposta:
 - gráficos;
 - comparação de experimentos.
 
+# Ajustes
 
 ## Etapa 2 — Estado emocional multidimensional
 
